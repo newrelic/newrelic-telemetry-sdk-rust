@@ -1,11 +1,7 @@
 [package]
-name = "newrelic-telemetry-sdk-rust"
+name = "newrelic-telemetry"
 version = "0.1.0"
 authors = ["New Relic <opensource@newrelic.com>"]
 edition = "2018"
-
-[lib]
-name = "newrelic_telemetry_sdk_rust"
-crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
