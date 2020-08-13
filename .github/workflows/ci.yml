@@ -36,4 +36,3 @@ jobs:
           override: true
     - name: run tests
       run: cargo test
-      
