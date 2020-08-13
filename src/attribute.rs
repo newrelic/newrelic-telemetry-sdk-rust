@@ -1,11 +1,9 @@
-use serde::Serialize;
-
 /// Represents any valid attribute value.
 ///
 /// According to the [specification](https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/capabilities.md),
 /// attribute values can be a string, numeric, or boolean. A numeric value is
 /// represented either as a signed integer, an unsigned integer or a float.
-#[derive(Serialize, Debug, PartialEq, Clone)]
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
 #[serde(untagged)]
 pub enum Value {
     /// Represents a signed integer attribute value.
@@ -56,7 +54,7 @@ pub enum Value {
 
 /// Types whose values can be converted to attribute values.
 ///
-/// If a type implements `ToValue`, it an be converted into an attribute value:
+/// If a type implements `ToValue`, it can be converted into an attribute value:
 /// ```
 /// # use newrelic_telemetry::attribute::{Value, ToValue};
 /// #
@@ -189,6 +187,7 @@ mod tests {
 
     #[test]
     fn value_to_json() {
+        // Attribute values should serialize to plain JSON values.
         assert_eq!(json!(Value::Int(-5)), json!(-5));
         assert_eq!(json!(Value::UInt(5)), json!(5));
         assert_eq!(json!(Value::Float(3.14159)), json!(3.14159));
