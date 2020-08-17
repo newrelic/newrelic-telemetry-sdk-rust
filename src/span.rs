@@ -55,11 +55,11 @@ impl Span {
 #[cfg(test)]
 mod tests {
     use super::Span;
-    use crate::util::now_as_millis;
+    use serde_json::json;
 
     #[test]
     fn test_set_id() {
-        let mut span = Span::new("id1", "traceId1", now_as_millis().unwrap_or(0));
+        let mut span = Span::new("id1", "traceId1", 1);
         assert_eq!(span.id, "id1");
 
         span.set_id("id2");
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_set_trace_id() {
-        let mut span = Span::new("id1", "traceId1", now_as_millis().unwrap_or(0));
+        let mut span = Span::new("id1", "traceId1", 1);
         assert_eq!(span.trace_id, "traceId1");
 
         span.set_trace_id("traceId2");
@@ -91,5 +91,15 @@ mod tests {
 
         span = span.timestamp(3);
         assert_eq!(span.timestamp, 3);
+    }
+
+    #[test]
+    fn span_to_json() {
+        // Check span JSON serialization.
+        let span = Span::new("id1", "traceId1", 1);
+        let json_span = json!({"id": "id1", "trace.id": "traceId1", "timestamp": 1});
+
+        assert_eq!(json!(span), json_span);
+
     }
 }
