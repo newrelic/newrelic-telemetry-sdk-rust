@@ -40,7 +40,7 @@ impl Span {
         self.trace_id = trace_id.to_string();
     }
 
-    /// Set the start time of the span.
+    /// Set the start time of the span. This is a required field.
     pub fn timestamp(mut self, timestamp: u64) -> Self {
         self.timestamp = timestamp;
         self
