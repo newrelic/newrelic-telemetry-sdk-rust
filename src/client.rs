@@ -197,8 +197,45 @@ impl ClientBuilder {
     }
 }
 
-mod r#async {
-    pub struct Client;
+/// An async implementation of the New Relic Telemetry SDK `Client`.
+pub mod r#async {
+    use anyhow::Result;
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
+    pub struct Client {}
+
+    impl Client {
+        // Returns a gzip compressed version of the given string.
+        fn to_gzip(text: &String) -> Result<Vec<u8>> {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            encoder.write_all(text.as_bytes())?;
+            Ok(encoder.finish()?)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::Client;
+        use anyhow::Result;
+        use flate2::read::GzDecoder;
+        use std::io::Read;
+
+        #[test]
+        fn to_gzip() -> Result<()> {
+            let text = "Text to be encoded".to_string();
+            let encoded = Client::to_gzip(&text)?;
+
+            let mut gz = GzDecoder::new(&encoded[..]);
+            let mut decoded = String::new();
+            gz.read_to_string(&mut decoded)?;
+
+            assert_eq!(decoded, text);
+
+            Ok(())
+        }
+    }
 }
 
 #[cfg(test)]
