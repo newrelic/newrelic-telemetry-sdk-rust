@@ -27,22 +27,22 @@ pub trait Sendable: std::fmt::Display + Send {
     fn split(&mut self) -> Box<dyn Sendable>;
 }
 
-/// `Builder` acts as builder for initializing a `Sender`.
+/// `ClientBuilder` acts as builder for initializing a `Client`.
 ///
 /// It can be used to customize ingest URLs, the backoff factor, the retry
 /// maximum, and the product info.
 ///
 /// ```
-/// # use newrelic_telemetry::sender::Builder;
+/// # use newrelic_telemetry::ClientBuilder;
 /// # use std::time::Duration;
 /// # let api_key = "";
-/// let mut builder = Builder::new(api_key);
+/// let mut builder = ClientBuilder::new(api_key);
 ///
-/// let sender = builder.backoff_factor(Duration::from_secs(10))
+/// let client = builder.backoff_factor(Duration::from_secs(10))
 ///                     .product_info("RustDoc", "1.0")
 ///                     .build();
 /// ```
-pub struct Builder {
+pub struct ClientBuilder {
     api_key: String,
     backoff_factor: Duration,
     retries_max: u32,
@@ -50,8 +50,8 @@ pub struct Builder {
     product_info: Option<(String, String)>,
 }
 
-impl Builder {
-    /// Initialize the sender builder with an API key.
+impl ClientBuilder {
+    /// Initialize the client builder with an API key.
     ///
     /// Other values will be set to defaults:
     ///  * The default backoff factor will be 5 seconds.
@@ -60,12 +60,12 @@ impl Builder {
     ///  * By default, product information is empty.
     ///
     /// ```
-    /// # use newrelic_telemetry::sender::Builder;
+    /// # use newrelic_telemetry::ClientBuilder;
     /// # let api_key = "";
-    /// let mut builder = Builder::new(api_key);
+    /// let mut builder = ClientBuilder::new(api_key);
     /// ```
     pub fn new(api_key: &str) -> Self {
-        Builder {
+        ClientBuilder {
             api_key: api_key.to_string(),
             backoff_factor: Duration::from_secs(5),
             retries_max: 8,
@@ -91,11 +91,11 @@ impl Builder {
     /// for further details.
     ///
     /// ```
-    /// # use newrelic_telemetry::sender::Builder;
+    /// # use newrelic_telemetry::ClientBuilder;
     /// # use std::time::Duration;
     /// # let api_key = "";
     /// let mut builder =
-    ///     Builder::new(api_key).backoff_factor(Duration::from_secs(10));
+    ///     ClientBuilder::new(api_key).backoff_factor(Duration::from_secs(10));
     /// ```
     pub fn backoff_factor(mut self, factor: Duration) -> Self {
         self.backoff_factor = factor;
@@ -117,10 +117,10 @@ impl Builder {
     /// for further details.
     ///
     /// ```
-    /// # use newrelic_telemetry::sender::Builder;
+    /// # use newrelic_telemetry::ClientBuilder;
     /// # let api_key = "";
     /// let mut builder =
-    ///     Builder::new(api_key).retries_max(4);
+    ///     ClientBuilder::new(api_key).retries_max(4);
     /// ```
     pub fn retries_max(mut self, retries: u32) -> Self {
         self.retries_max = retries;
@@ -133,10 +133,10 @@ impl Builder {
     /// with alternative New Relic backends.
     ///
     /// ```
-    /// # use newrelic_telemetry::sender::Builder;
+    /// # use newrelic_telemetry::ClientBuilder;
     /// # let api_key = "";
     /// let mut builder =
-    ///     Builder::new(api_key).endpoint_traces("https://127.0.0.1/trace/v1", 80);
+    ///     ClientBuilder::new(api_key).endpoint_traces("https://127.0.0.1/trace/v1", 80);
     /// ```
     pub fn endpoint_traces(mut self, url: &str, port: u32) -> Self {
         self.endpoint_traces = (url.to_string(), port);
@@ -152,26 +152,26 @@ impl Builder {
     /// for further details.
     ///
     /// ```
-    /// # use newrelic_telemetry::sender::Builder;
+    /// # use newrelic_telemetry::ClientBuilder;
     /// # let api_key = "";
     /// let mut builder =
-    ///     Builder::new(api_key).product_info("NewRelic-Cpp-OpenTelemetry", "0.2.1");
+    ///     ClientBuilder::new(api_key).product_info("NewRelic-Cpp-OpenTelemetry", "0.2.1");
     /// ```
     pub fn product_info(mut self, product: &str, version: &str) -> Self {
         self.product_info = Some((product.to_string(), version.to_string()));
         self
     }
 
-    /// Build an asynchronous sender.
+    /// Build an asynchronous client.
     ///
     /// ```
-    /// # use newrelic_telemetry::sender::Builder;
+    /// # use newrelic_telemetry::ClientBuilder;
     /// # let api_key = "";
-    /// let builder = Builder::new(api_key);
+    /// let builder = ClientBuilder::new(api_key);
     ///
-    /// let sender = builder.build();
+    /// let client = builder.build();
     /// ```
-    pub fn build(self) -> Result<r#async::Sender> {
+    pub fn build(self) -> Result<r#async::Client> {
         Err(anyhow!("not implemented"))
     }
 
@@ -198,17 +198,17 @@ impl Builder {
 }
 
 mod r#async {
-    pub struct Sender;
+    pub struct Client;
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Builder, VERSION};
+    use super::{ClientBuilder, VERSION};
     use std::time::Duration;
 
     #[test]
     fn builder_default() {
-        let b = Builder::new("0000");
+        let b = ClientBuilder::new("0000");
 
         assert_eq!(b.api_key, "0000");
         assert_eq!(b.backoff_factor, Duration::from_secs(5));
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn builder_setters() {
-        let b = Builder::new("0000")
+        let b = ClientBuilder::new("0000")
             .backoff_factor(Duration::from_secs(10))
             .retries_max(10)
             .endpoint_traces("https://127.0.0.1", 8080)
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn backoff_sequence_default() {
-        let seq = Builder::new("").get_backoff_sequence();
+        let seq = ClientBuilder::new("").get_backoff_sequence();
 
         assert_eq!(
             seq,
@@ -253,14 +253,14 @@ mod tests {
 
     #[test]
     fn backoff_sequence_no_retry() {
-        let seq = Builder::new("").retries_max(0).get_backoff_sequence();
+        let seq = ClientBuilder::new("").retries_max(0).get_backoff_sequence();
 
         assert_eq!(seq, vec![]);
     }
 
     #[test]
     fn backoff_sequence_custom() {
-        let seq = Builder::new("")
+        let seq = ClientBuilder::new("")
             .backoff_factor(Duration::from_secs(2))
             .retries_max(6)
             .get_backoff_sequence();
@@ -276,14 +276,14 @@ mod tests {
 
     #[test]
     fn user_agent_header_default() {
-        let header = Builder::new("").get_user_agent_header();
+        let header = ClientBuilder::new("").get_user_agent_header();
 
         assert_eq!(header, format!("NewRelic-Rust-TelemetrySDK/{}", VERSION));
     }
 
     #[test]
     fn user_agent_header_custom() {
-        let header = Builder::new("")
+        let header = ClientBuilder::new("")
             .product_info("Doc", "1.0")
             .get_user_agent_header();
 

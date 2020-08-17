@@ -1,2 +1,5 @@
 pub mod attribute;
-pub mod sender;
+mod client;
+
+#[cfg(feature = "client")]
+pub use client::ClientBuilder;

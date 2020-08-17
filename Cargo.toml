@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["New Relic <opensource@newrelic.com>"]
 edition = "2018"
 
+[features]
+default = [ "client" ]
+client = []
+
 [dependencies]
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
