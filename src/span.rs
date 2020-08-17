@@ -100,6 +100,5 @@ mod tests {
         let json_span = json!({"id": "id1", "trace.id": "traceId1", "timestamp": 1});
 
         assert_eq!(json!(span), json_span);
-
     }
 }
