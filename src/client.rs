@@ -199,10 +199,29 @@ impl ClientBuilder {
 
 /// An async implementation of the New Relic Telemetry SDK `Client`.
 pub mod r#async {
-    use anyhow::Result;
+    use super::Sendable;
+    use anyhow::{anyhow, Result};
     use flate2::write::GzEncoder;
     use flate2::Compression;
+    use hyper::{HeaderMap, Response};
+    use log::{debug, error, info};
     use std::io::Write;
+    use std::time::Duration;
+
+    // An internal enum representing the state of a payload.
+    #[derive(Debug, PartialEq)]
+    enum SendableState {
+        // No retry should be made.
+        Done,
+
+        // A retry should be made. Either after the given duration, or, if it
+        // is `None`, according to the backoff sequence.
+        Retry(Option<Duration>),
+
+        // The payload should be split and a retry should be made for both
+        // payloads.
+        Split,
+    }
 
     pub struct Client {}
 
@@ -213,14 +232,87 @@ pub mod r#async {
             encoder.write_all(text.as_bytes())?;
             Ok(encoder.finish()?)
         }
+
+        // Extract the value of the Retry-After HTTP response header
+        fn extract_retry_after(headers: &HeaderMap) -> Result<Duration> {
+            if let Some(dur) = headers.get("retry-after") {
+                Ok(Duration::from_secs(dur.to_str()?.parse::<u64>()?))
+            } else {
+                Err(anyhow!("missing retry-after header"))
+            }
+        }
+
+        // Based on the response from an ingest endpoint, decide whether to
+        // retry or split a payload.
+        //
+        // See the [specification](https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/communication.md#response-codes)
+        // for further details.
+        fn process_response<T>(batch: Box<dyn Sendable>, response: Response<T>) -> SendableState {
+            let status = response.status();
+
+            match status.as_u16() {
+                200..=299 => {
+                    debug!("response {}, successfully sent {}", status, batch);
+                }
+                400 | 401 | 403 | 404 | 405 | 409 | 410 | 411 => {
+                    error!("response {}, dropping {}", status, batch);
+                }
+                413 => {
+                    info!(
+                        "response {}, payload too large, splitting {}",
+                        status, batch
+                    );
+                    return SendableState::Split;
+                }
+                429 => match Self::extract_retry_after(response.headers()) {
+                    Ok(duration) => {
+                        info!(
+                            "response {}: retry interval {:?}, retrying {}",
+                            status, duration, batch
+                        );
+
+                        return SendableState::Retry(Some(duration));
+                    }
+                    Err(e) => {
+                        error!("response {}, {}, dropping {}", status, e, batch);
+                    }
+                },
+                _ => {
+                    debug!("response {}, retry {}", status, batch);
+                    return SendableState::Retry(None);
+                }
+            }
+            return SendableState::Done;
+        }
     }
 
     #[cfg(test)]
     mod tests {
-        use super::Client;
+        use super::{Client, Sendable, SendableState};
         use anyhow::Result;
         use flate2::read::GzDecoder;
+        use hyper::Response;
+        use std::fmt;
         use std::io::Read;
+        use std::time::Duration;
+
+        pub struct TestBatch;
+
+        impl Sendable for TestBatch {
+            fn marshall(&self) -> Result<String> {
+                Ok("".to_string())
+            }
+
+            fn split(&mut self) -> Box<dyn Sendable> {
+                Box::new(TestBatch)
+            }
+        }
+
+        impl fmt::Display for TestBatch {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "<TestBatch>")
+            }
+        }
 
         #[test]
         fn to_gzip() -> Result<()> {
@@ -232,6 +324,107 @@ pub mod r#async {
             gz.read_to_string(&mut decoded)?;
 
             assert_eq!(decoded, text);
+
+            Ok(())
+        }
+
+        #[test]
+        fn extract_retry_after() -> Result<()> {
+            let mut headers = hyper::HeaderMap::new();
+
+            let when = Client::extract_retry_after(&headers);
+            assert!(when.is_err());
+
+            headers.insert("Retry-after", "7".parse()?);
+
+            let when = Client::extract_retry_after(&headers)?;
+            assert_eq!(when, Duration::from_secs(7));
+
+            headers.insert("Retry-after", "seven".parse()?);
+
+            let when = Client::extract_retry_after(&headers);
+            assert!(when.is_err());
+
+            Ok(())
+        }
+
+        #[test]
+        fn process_response_success() -> Result<()> {
+            for code in 200..300 {
+                let batch = Box::new(TestBatch);
+                let response = Response::builder().status(code).body(())?;
+
+                assert_eq!(
+                    Client::process_response(batch, response),
+                    SendableState::Done
+                );
+            }
+
+            Ok(())
+        }
+
+        #[test]
+        fn process_response_error() -> Result<()> {
+            for code in vec![400, 401, 403, 404, 405, 409, 410, 411] {
+                let batch = Box::new(TestBatch);
+                let response = Response::builder().status(code).body(())?;
+
+                assert_eq!(
+                    Client::process_response(batch, response),
+                    SendableState::Done
+                );
+            }
+
+            Ok(())
+        }
+
+        #[test]
+        fn process_response_split() -> Result<()> {
+            let batch = Box::new(TestBatch);
+            let response = Response::builder().status(413).body(())?;
+
+            assert_eq!(
+                Client::process_response(batch, response),
+                SendableState::Split
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn process_response_retry_from_header() -> Result<()> {
+            let batch = Box::new(TestBatch);
+            let response = Response::builder()
+                .status(429)
+                .header("retry-after", "7")
+                .body(())?;
+
+            assert_eq!(
+                Client::process_response(batch, response),
+                SendableState::Retry(Some(Duration::from_secs(7)))
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn process_response_retry() -> Result<()> {
+            let mut codes = vec![402, 406, 407, 408];
+            codes.append(&mut (100..200).collect());
+            codes.append(&mut (300..400).collect());
+            codes.append(&mut (430..600).collect());
+
+            for code in codes {
+                let batch = Box::new(TestBatch);
+                let response = Response::builder().status(code).body(())?;
+
+                assert_eq!(
+                    Client::process_response(batch, response),
+                    SendableState::Retry(None),
+                    "expected retry on {}",
+                    code
+                );
+            }
 
             Ok(())
         }
