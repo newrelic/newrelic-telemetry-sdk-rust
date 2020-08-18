@@ -203,7 +203,8 @@ pub mod r#async {
     use anyhow::{anyhow, Result};
     use flate2::write::GzEncoder;
     use flate2::Compression;
-    use hyper::{HeaderMap, Response};
+    use hyper::header::{CONTENT_ENCODING, CONTENT_TYPE};
+    use hyper::{Body, HeaderMap, Method, Request, Response};
     use log::{debug, error, info};
     use std::io::Write;
     use std::time::Duration;
@@ -223,7 +224,10 @@ pub mod r#async {
         Split,
     }
 
-    pub struct Client {}
+    pub struct Client {
+        api_key: String,
+        user_agent: String,
+    }
 
     impl Client {
         // Returns a gzip compressed version of the given string.
@@ -240,6 +244,36 @@ pub mod r#async {
             } else {
                 Err(anyhow!("missing retry-after header"))
             }
+        }
+
+        // Create a request from the given batch and endpoint.
+        fn request<'a>(
+            &self,
+            batch: &(dyn Sendable + 'a),
+            endpoint: &(String, Option<u16>),
+        ) -> Result<Request<Body>> {
+            let raw = batch.marshall()?;
+            let gzipped = Self::to_gzip(&raw)?;
+
+            let endpoint = format!(
+                "https://{}{}/traces/v1",
+                endpoint.0,
+                match endpoint.1 {
+                    Some(port) => format!(":{}", port),
+                    _ => "".to_string(),
+                }
+            );
+
+            Ok(Request::builder()
+                .method(Method::POST)
+                .uri(endpoint)
+                .header("Api-Key", &self.api_key)
+                .header("Data-Format", "newrelic")
+                .header("Data-Format-Version", "1")
+                .header("User-Agent", &self.user_agent)
+                .header(CONTENT_ENCODING, "gzip")
+                .header(CONTENT_TYPE, "application/json")
+                .body(Body::from(gzipped))?)
         }
 
         // Based on the response from an ingest endpoint, decide whether to
@@ -291,6 +325,8 @@ pub mod r#async {
         use super::{Client, Sendable, SendableState};
         use anyhow::Result;
         use flate2::read::GzDecoder;
+        use hyper::header::{HeaderValue, CONTENT_ENCODING, CONTENT_TYPE};
+        use hyper::Method;
         use hyper::Response;
         use std::fmt;
         use std::io::Read;
@@ -425,6 +461,58 @@ pub mod r#async {
                     code
                 );
             }
+
+            Ok(())
+        }
+
+        #[test]
+        fn request() -> Result<()> {
+            let batch = Box::new(TestBatch);
+            let client = Client {
+                api_key: "key".to_string(),
+                user_agent: "user-agent".to_string(),
+            };
+            let endpoint = ("host".to_string(), None);
+
+            let request = client.request(&*batch, &endpoint)?;
+
+            assert_eq!(request.uri().port(), None);
+            assert_eq!(request.uri().host(), Some("host"));
+            assert_eq!(request.uri().path(), "/traces/v1");
+            assert_eq!(request.method(), Method::POST);
+
+            let headers = request.headers();
+
+            for (header, expected) in vec![
+                (CONTENT_ENCODING.as_str(), "gzip"),
+                (CONTENT_TYPE.as_str(), "application/json"),
+                ("Api-Key", &client.api_key),
+                ("Data-Format", "newrelic"),
+                ("Data-Format-Version", "1"),
+                ("User-Agent", &client.user_agent),
+            ] {
+                let value = headers.get(header);
+                let expected = HeaderValue::from_str(expected)?;
+                assert_eq!(value, Some(&expected));
+            }
+
+            Ok(())
+        }
+
+        #[test]
+        fn request_port() -> Result<()> {
+            let batch = Box::new(TestBatch);
+            let client = Client {
+                api_key: "key".to_string(),
+                user_agent: "user-agent".to_string(),
+            };
+            let endpoint = ("host".to_string(), Some(80));
+
+            let request = client.request(&*batch, &endpoint)?;
+
+            assert_eq!(request.uri().port().unwrap().as_u16(), 80);
+            assert_eq!(request.uri().host(), Some("host"));
+            assert_eq!(request.uri().path(), "/traces/v1");
 
             Ok(())
         }
