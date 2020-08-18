@@ -293,6 +293,47 @@ impl Client {
         }
     }
 
+    // Sends a given `Sendable` asynchronously to a given endpoint.
+    fn send<'a>(
+        &'a self,
+        mut batch: Box<dyn Sendable>,
+        endpoint: &'a (String, Option<u16>),
+    ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
+        Box::pin(async move {
+            for duration in self.backoff_sequence.iter() {
+                let request = match self.request(&*batch, endpoint) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        error!("cannot create request for {}, dropping due to {}", batch, e);
+                        return;
+                    }
+                };
+
+                let response = match self.client.request(request).await {
+                    Ok(r) => r,
+                    Err(e) => {
+                        error!("cannot send request for {}, dropping due to {}", batch, e);
+                        return;
+                    }
+                };
+
+                let status = Self::process_response(&*batch, response);
+
+                match status {
+                    SendableState::Done => return,
+                    SendableState::Retry(Some(duration)) => thread::sleep(duration),
+                    SendableState::Split => {
+                        let batch2 = batch.split();
+                        self.send(batch, endpoint).await;
+                        self.send(batch2, endpoint).await;
+                        return;
+                    }
+                    _ => {}
+                }
+            }
+        })
+    }
+
     // Create a request from the given batch and endpoint.
     fn request<'a>(&self, batch: &(dyn Sendable + 'a), endpoint: &Uri) -> Result<Request<Body>> {
         let raw = batch.marshall()?;
