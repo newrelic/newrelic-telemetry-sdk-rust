@@ -1,4 +1,4 @@
-use crate::attribute::{ToValue, Value};
+use crate::attribute::Value;
 use std::collections::HashMap;
 
 /// Represents a distributed tracing span.
@@ -94,15 +94,13 @@ impl Span {
     }
 
     /// Set an attribute on the span.
-    pub fn attribute<T: ToValue>(mut self, key: &str, value: T) -> Self {
-        self.attributes
-            .insert(key.to_string(), value.to_attribute_value());
+    pub fn attribute<T: Into<Value>>(mut self, key: &str, value: T) -> Self {
+        self.attributes.insert(key.to_string(), value.into());
         self
     }
 
-    pub fn set_attribute<T: ToValue>(&mut self, key: &str, value: T) {
-        self.attributes
-            .insert(key.to_string(), value.to_attribute_value());
+    pub fn set_attribute<T: Into<Value>>(&mut self, key: &str, value: T) {
+        self.attributes.insert(key.to_string(), value.into());
     }
 }
 
