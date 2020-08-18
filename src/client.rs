@@ -216,8 +216,8 @@ impl ClientBuilder {
     ///
     /// let client = builder.build();
     /// ```
-    pub fn build(self) -> Result<Client> {
-        Err(anyhow!("not implemented"))
+    pub fn build(self) -> Client {
+        Client::new(self)
     }
 
     fn get_backoff_sequence(&self) -> Vec<Duration> {
@@ -260,9 +260,24 @@ enum SendableState {
 pub struct Client {
     api_key: String,
     user_agent: String,
+    backoff_sequence: Vec<Duration>,
+    endpoint_traces: Endpoint,
 }
 
 impl Client {
+    pub fn new(builder: ClientBuilder) -> Self {
+        let user_agent = builder.get_user_agent_header();
+        let backoff_seq = builder.get_backoff_sequence();
+        let endpoint_traces = builder.endpoint_traces;
+
+        Client {
+            api_key: builder.api_key,
+            endpoint_traces: endpoint_traces,
+            user_agent: user_agent,
+            backoff_sequence: backoff_seq,
+        }
+    }
+
     // Returns a gzip compressed version of the given string.
     fn to_gzip(text: &String) -> Result<Vec<u8>> {
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
@@ -301,7 +316,10 @@ impl Client {
     //
     // See the [specification](https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/communication.md#response-codes)
     // for further details.
-    fn process_response<T>(batch: Box<dyn Sendable>, response: Response<T>) -> SendableState {
+    fn process_response<'a, T>(
+        batch: &(dyn Sendable + 'a),
+        response: Response<T>,
+    ) -> SendableState {
         let status = response.status();
 
         match status.as_u16() {
@@ -350,7 +368,6 @@ mod tests {
     use std::fmt;
     use std::io::Read;
     use std::time::Duration;
-
     pub struct TestBatch;
 
     impl Sendable for TestBatch {
@@ -367,6 +384,30 @@ mod tests {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(f, "<TestBatch>")
         }
+    }
+    #[test]
+    fn build() {
+        let client = ClientBuilder::new("0000")
+            .backoff_factor(Duration::from_secs(2))
+            .retries_max(6)
+            .endpoint_traces("https://127.0.0.1", Some(8080))
+            .product_info("Test", "1.0")
+            .build();
+
+        assert_eq!(client.api_key, "0000");
+        assert_eq!(client.endpoint_traces.host, "https://127.0.0.1");
+        assert_eq!(client.endpoint_traces.port, Some(8080));
+        assert_eq!(
+            client.user_agent,
+            format!("NewRelic-Rust-TelemetrySDK/{} Test/1.0", VERSION)
+        );
+        assert_eq!(
+            client.backoff_sequence,
+            vec![0, 2, 4, 8, 16, 32]
+                .into_iter()
+                .map(|d| Duration::from_secs(d))
+                .collect::<Vec<Duration>>()
+        );
     }
 
     #[test]
@@ -457,8 +498,8 @@ mod tests {
             let response = Response::builder().status(code).body(())?;
 
             assert_eq!(
-                Client::process_response(batch, response),
-                SendableState::Done
+                Client::process_response(&*batch, response),
+                SendableState::Split
             );
         }
 
@@ -472,8 +513,8 @@ mod tests {
             let response = Response::builder().status(code).body(())?;
 
             assert_eq!(
-                Client::process_response(batch, response),
-                SendableState::Done
+                Client::process_response(&*batch, response),
+                SendableState::Retry(Some(Duration::from_secs(7)))
             );
         }
 
@@ -486,7 +527,7 @@ mod tests {
         let response = Response::builder().status(413).body(())?;
 
         assert_eq!(
-            Client::process_response(batch, response),
+            Client::process_response(&*batch, response),
             SendableState::Split
         );
 
@@ -502,7 +543,7 @@ mod tests {
             .body(())?;
 
         assert_eq!(
-            Client::process_response(batch, response),
+            Client::process_response(&*batch, response),
             SendableState::Retry(Some(Duration::from_secs(7)))
         );
 
@@ -521,7 +562,7 @@ mod tests {
             let response = Response::builder().status(code).body(())?;
 
             assert_eq!(
-                Client::process_response(batch, response),
+                Client::process_response(&*batch, response),
                 SendableState::Retry(None),
                 "expected retry on {}",
                 code
@@ -534,10 +575,7 @@ mod tests {
     #[test]
     fn request() -> Result<()> {
         let batch = Box::new(TestBatch);
-        let client = Client {
-            api_key: "key".to_string(),
-            user_agent: "user-agent".to_string(),
-        };
+        let client = ClientBuilder::new("").build();
         let endpoint = Endpoint {
             host: "host".to_string(),
             path: TRACE_API_PATH,
@@ -572,10 +610,7 @@ mod tests {
     #[test]
     fn request_port() -> Result<()> {
         let batch = Box::new(TestBatch);
-        let client = Client {
-            api_key: "key".to_string(),
-            user_agent: "user-agent".to_string(),
-        };
+        let client = ClientBuilder::new("").build();
         let endpoint = Endpoint {
             host: "host".to_string(),
             path: TRACE_API_PATH,
