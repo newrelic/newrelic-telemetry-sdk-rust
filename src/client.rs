@@ -27,6 +27,16 @@ pub trait Sendable: std::fmt::Display + Send {
     fn split(&mut self) -> Box<dyn Sendable>;
 }
 
+// Represents a New Relic ingest endpoint.
+struct Endpoint {
+    // The host name or address of the endpoint.
+    host: String,
+
+    // The port of the endpoint. This is optional, if not given it will default
+    // to the standard HTTPS port.
+    port: Option<u16>,
+}
+
 /// `ClientBuilder` acts as builder for initializing a `Client`.
 ///
 /// It can be used to customize ingest URLs, the backoff factor, the retry
@@ -46,7 +56,7 @@ pub struct ClientBuilder {
     api_key: String,
     backoff_factor: Duration,
     retries_max: u32,
-    endpoint_traces: (String, u32),
+    endpoint_traces: Endpoint,
     product_info: Option<(String, String)>,
 }
 
@@ -69,7 +79,10 @@ impl ClientBuilder {
             api_key: api_key.to_string(),
             backoff_factor: Duration::from_secs(5),
             retries_max: 8,
-            endpoint_traces: ("https://trace-api.newrelic.com/trace/v1".to_string(), 80),
+            endpoint_traces: Endpoint {
+                host: "https://trace-api.newrelic.com/trace/v1".to_string(),
+                port: None,
+            },
             product_info: None,
         }
     }
@@ -136,10 +149,13 @@ impl ClientBuilder {
     /// # use newrelic_telemetry::ClientBuilder;
     /// # let api_key = "";
     /// let mut builder =
-    ///     ClientBuilder::new(api_key).endpoint_traces("https://127.0.0.1/trace/v1", 80);
+    ///     ClientBuilder::new(api_key).endpoint_traces("https://127.0.0.1/trace/v1", None);
     /// ```
-    pub fn endpoint_traces(mut self, url: &str, port: u32) -> Self {
-        self.endpoint_traces = (url.to_string(), port);
+    pub fn endpoint_traces(mut self, url: &str, port: Option<u16>) -> Self {
+        self.endpoint_traces = Endpoint {
+            host: url.to_string(),
+            port: port,
+        };
         self
     }
 
@@ -199,7 +215,7 @@ impl ClientBuilder {
 
 /// An async implementation of the New Relic Telemetry SDK `Client`.
 pub mod r#async {
-    use super::Sendable;
+    use super::{Endpoint, Sendable};
     use anyhow::{anyhow, Result};
     use flate2::write::GzEncoder;
     use flate2::Compression;
@@ -250,15 +266,15 @@ pub mod r#async {
         fn request<'a>(
             &self,
             batch: &(dyn Sendable + 'a),
-            endpoint: &(String, Option<u16>),
+            endpoint: &Endpoint,
         ) -> Result<Request<Body>> {
             let raw = batch.marshall()?;
             let gzipped = Self::to_gzip(&raw)?;
 
             let endpoint = format!(
                 "https://{}{}/traces/v1",
-                endpoint.0,
-                match endpoint.1 {
+                endpoint.host,
+                match endpoint.port {
                     Some(port) => format!(":{}", port),
                     _ => "".to_string(),
                 }
@@ -322,7 +338,7 @@ pub mod r#async {
 
     #[cfg(test)]
     mod tests {
-        use super::{Client, Sendable, SendableState};
+        use super::{Client, Endpoint, Sendable, SendableState};
         use anyhow::Result;
         use flate2::read::GzDecoder;
         use hyper::header::{HeaderValue, CONTENT_ENCODING, CONTENT_TYPE};
@@ -472,7 +488,10 @@ pub mod r#async {
                 api_key: "key".to_string(),
                 user_agent: "user-agent".to_string(),
             };
-            let endpoint = ("host".to_string(), None);
+            let endpoint = Endpoint {
+                host: "host".to_string(),
+                port: None,
+            };
 
             let request = client.request(&*batch, &endpoint)?;
 
@@ -506,7 +525,10 @@ pub mod r#async {
                 api_key: "key".to_string(),
                 user_agent: "user-agent".to_string(),
             };
-            let endpoint = ("host".to_string(), Some(80));
+            let endpoint = Endpoint {
+                host: "host".to_string(),
+                port: Some(80),
+            };
 
             let request = client.request(&*batch, &endpoint)?;
 
@@ -532,9 +554,10 @@ mod tests {
         assert_eq!(b.backoff_factor, Duration::from_secs(5));
         assert_eq!(b.retries_max, 8);
         assert_eq!(
-            b.endpoint_traces,
-            ("https://trace-api.newrelic.com/trace/v1".to_string(), 80)
+            b.endpoint_traces.host,
+            "https://trace-api.newrelic.com/trace/v1"
         );
+        assert_eq!(b.endpoint_traces.port, None);
         assert_eq!(b.product_info, None);
     }
 
@@ -543,13 +566,14 @@ mod tests {
         let b = ClientBuilder::new("0000")
             .backoff_factor(Duration::from_secs(10))
             .retries_max(10)
-            .endpoint_traces("https://127.0.0.1", 8080)
+            .endpoint_traces("https://127.0.0.1", Some(8080))
             .product_info("Test", "1.0");
 
         assert_eq!(b.api_key, "0000");
         assert_eq!(b.backoff_factor, Duration::from_secs(10));
         assert_eq!(b.retries_max, 10);
-        assert_eq!(b.endpoint_traces, ("https://127.0.0.1".to_string(), 8080));
+        assert_eq!(b.endpoint_traces.host, "https://127.0.0.1");
+        assert_eq!(b.endpoint_traces.port, Some(8080));
         assert_eq!(
             b.product_info,
             Some(("Test".to_string(), "1.0".to_string()))
