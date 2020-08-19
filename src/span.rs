@@ -10,6 +10,7 @@ pub struct Span {
     trace_id: String,
 
     timestamp: u64,
+
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     attributes: HashMap<String, Value>,
 }
@@ -164,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_attribute() {
-        let mut span = Span::new("id1", "traceId1", 1);
+        let mut span = Span::new("id", "traceId", 1);
 
         // Test name attribute
         span.set_name("name");
@@ -211,18 +212,72 @@ mod tests {
             span.attributes.get("service.name"),
             Some(&Value::Str(String::from("serviceName2")))
         );
+    }
 
-        // Test parent id attribute
-        span.set_attribute("attribute.one", "attribute1");
+    #[test]
+    fn test_attribute_type() {
+        let mut span = Span::new("id", "traceId", 1);
+
+        // Test String attribute
+        span.set_attribute("attr.str", "str");
         assert_eq!(
-            span.attributes.get("attribute.one"),
-            Some(&Value::Str(String::from("attribute1")))
+            span.attributes.get("attr.str"),
+            Some(&Value::Str(String::from("str")))
         );
 
-        span = span.attribute("attribute.two", "attribute2");
+        span = span.attribute("attr.str", "str2");
         assert_eq!(
-            span.attributes.get("attribute.two"),
-            Some(&Value::Str(String::from("attribute2")))
+            span.attributes.get("attr.str"),
+            Some(&Value::Str(String::from("str2")))
         );
+
+        // Test UInt attribute
+        let val_u32: u32 = 5;
+        span.set_attribute("attr.uint", val_u32);
+        assert_eq!(
+            span.attributes.get("attr.uint"),
+            Some(&Value::UInt(val_u32 as u64))
+        );
+
+        let val_u64: u64 = 42;
+        span = span.attribute("attr.uint", val_u64);
+        assert_eq!(
+            span.attributes.get("attr.uint"),
+            Some(&Value::UInt(val_u64))
+        );
+
+        // Test Int attribute
+        let val_i32: i32 = -5;
+        span.set_attribute("attr.int", val_i32);
+        assert_eq!(
+            span.attributes.get("attr.int"),
+            Some(&Value::Int(val_i32 as i64))
+        );
+
+        let val_i64: i64 = -42;
+        span = span.attribute("attr.int", val_i64);
+        assert_eq!(span.attributes.get("attr.int"), Some(&Value::Int(val_i64)));
+
+        // Test Float attribute
+        let val_f32: f32 = 3.14;
+        span.set_attribute("attr.float", val_f32);
+        assert_eq!(
+            span.attributes.get("attr.float"),
+            Some(&Value::Float(val_f32 as f64))
+        );
+
+        let val_f64: f64 = 6.28;
+        span = span.attribute("attr.float", val_f64);
+        assert_eq!(
+            span.attributes.get("attr.float"),
+            Some(&Value::Float(val_f64))
+        );
+
+        // Test Bool attribute
+        span.set_attribute("attr.bool", true);
+        assert_eq!(span.attributes.get("attr.bool"), Some(&Value::Bool(true)));
+
+        span = span.attribute("attr.bool", false);
+        assert_eq!(span.attributes.get("attr.bool"), Some(&Value::Bool(false)));
     }
 }
