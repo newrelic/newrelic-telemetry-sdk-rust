@@ -219,7 +219,7 @@ pub mod r#async {
     use anyhow::{anyhow, Result};
     use flate2::write::GzEncoder;
     use flate2::Compression;
-    use hyper::header::{CONTENT_ENCODING, CONTENT_TYPE};
+    use hyper::header::{CONTENT_ENCODING, CONTENT_TYPE, USER_AGENT};
     use hyper::{Body, HeaderMap, Method, Request, Response};
     use log::{debug, error, info};
     use std::io::Write;
@@ -286,7 +286,7 @@ pub mod r#async {
                 .header("Api-Key", &self.api_key)
                 .header("Data-Format", "newrelic")
                 .header("Data-Format-Version", "1")
-                .header("User-Agent", &self.user_agent)
+                .header(USER_AGENT, &self.user_agent)
                 .header(CONTENT_ENCODING, "gzip")
                 .header(CONTENT_TYPE, "application/json")
                 .body(Body::from(gzipped))?)
@@ -341,7 +341,7 @@ pub mod r#async {
         use super::{Client, Endpoint, Sendable, SendableState};
         use anyhow::Result;
         use flate2::read::GzDecoder;
-        use hyper::header::{HeaderValue, CONTENT_ENCODING, CONTENT_TYPE};
+        use hyper::header::{HeaderValue, CONTENT_ENCODING, CONTENT_TYPE, USER_AGENT};
         use hyper::Method;
         use hyper::Response;
         use std::fmt;
@@ -508,7 +508,7 @@ pub mod r#async {
                 ("Api-Key", &client.api_key),
                 ("Data-Format", "newrelic"),
                 ("Data-Format-Version", "1"),
-                ("User-Agent", &client.user_agent),
+                (USER_AGENT.as_str(), &client.user_agent),
             ] {
                 let value = headers.get(header);
                 let expected = HeaderValue::from_str(expected)?;
