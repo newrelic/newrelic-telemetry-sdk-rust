@@ -80,7 +80,7 @@ impl ClientBuilder {
             backoff_factor: Duration::from_secs(5),
             retries_max: 8,
             endpoint_traces: Endpoint {
-                host: "https://trace-api.newrelic.com/trace/v1".to_string(),
+                host: "trace-api.newrelic.com".to_string(),
                 port: None,
             },
             product_info: None,
@@ -553,10 +553,7 @@ mod tests {
         assert_eq!(b.api_key, "0000");
         assert_eq!(b.backoff_factor, Duration::from_secs(5));
         assert_eq!(b.retries_max, 8);
-        assert_eq!(
-            b.endpoint_traces.host,
-            "https://trace-api.newrelic.com/trace/v1"
-        );
+        assert_eq!(b.endpoint_traces.host, "trace-api.newrelic.com");
         assert_eq!(b.endpoint_traces.port, None);
         assert_eq!(b.product_info, None);
     }
@@ -566,13 +563,13 @@ mod tests {
         let b = ClientBuilder::new("0000")
             .backoff_factor(Duration::from_secs(10))
             .retries_max(10)
-            .endpoint_traces("https://127.0.0.1", Some(8080))
+            .endpoint_traces("127.0.0.1", Some(8080))
             .product_info("Test", "1.0");
 
         assert_eq!(b.api_key, "0000");
         assert_eq!(b.backoff_factor, Duration::from_secs(10));
         assert_eq!(b.retries_max, 10);
-        assert_eq!(b.endpoint_traces.host, "https://127.0.0.1");
+        assert_eq!(b.endpoint_traces.host, "127.0.0.1");
         assert_eq!(b.endpoint_traces.port, Some(8080));
         assert_eq!(
             b.product_info,
