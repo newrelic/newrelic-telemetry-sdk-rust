@@ -297,7 +297,7 @@ impl Client {
     fn send<'a>(
         &'a self,
         mut batch: Box<dyn Sendable>,
-        endpoint: &'a (String, Option<u16>),
+        endpoint: &'a Endpoint,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         Box::pin(async move {
             for duration in self.backoff_sequence.iter() {
