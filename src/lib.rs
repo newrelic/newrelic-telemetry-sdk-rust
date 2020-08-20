@@ -1,8 +1,7 @@
 pub mod attribute;
-pub mod span;
+#[cfg(feature = "client")]
 mod client;
+pub mod span;
 
 #[cfg(feature = "client")]
-pub use client::r#async;
-#[cfg(feature = "client")]
-pub use client::ClientBuilder;
+pub use client::{Client, ClientBuilder};
