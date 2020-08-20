@@ -173,16 +173,16 @@ impl ClientBuilder {
         self
     }
 
-    /// Configure the ingest URL for traces.
+    /// Configure the ingest host for traces.
     ///
-    /// Overrides the default ingest URL for traces to facilitate communication
+    /// Overrides the default ingest host for traces to facilitate communication
     /// with alternative New Relic backends.
     ///
     /// ```
     /// # use newrelic_telemetry::ClientBuilder;
     /// # let api_key = "";
     /// let mut builder =
-    ///     ClientBuilder::new(api_key).endpoint_traces("https://127.0.0.1/trace/v1", None);
+    ///     ClientBuilder::new(api_key).endpoint_traces("127.0.0.1", None);
     /// ```
     pub fn endpoint_traces(mut self, url: &str, port: Option<u16>) -> Self {
         self.endpoint_traces = Endpoint {
@@ -221,7 +221,7 @@ impl ClientBuilder {
     ///
     /// let client = builder.build();
     /// ```
-    pub fn build(self) -> Client {
+    pub fn build(self) -> Result<Client> {
         Client::new(self)
     }
 
@@ -266,23 +266,23 @@ pub struct Client {
     api_key: String,
     user_agent: String,
     backoff_sequence: Vec<Duration>,
-    endpoint_traces: Endpoint,
+    endpoint_traces: Uri,
     client: hyper::Client<HttpsConnector<HttpConnector>>,
 }
 
 impl Client {
-    pub fn new(builder: ClientBuilder) -> Self {
+    pub fn new(builder: ClientBuilder) -> Result<Self> {
         let https = HttpsConnector::new();
         let user_agent = builder.get_user_agent_header();
         let backoff_seq = builder.get_backoff_sequence();
 
-        Client {
+        Ok(Client {
             api_key: builder.api_key,
-            endpoint_traces: builder.endpoint_traces,
+            endpoint_traces: endpoint_traces.uri()?,
             user_agent: user_agent,
             backoff_sequence: backoff_seq,
             client: hyper::Client::builder().build::<_, hyper::Body>(https),
-        }
+        })
     }
 
     // Returns a gzip compressed version of the given string.
@@ -305,7 +305,7 @@ impl Client {
     fn send<'a>(
         &'a self,
         mut batch: Box<dyn Sendable>,
-        endpoint: &'a Endpoint,
+        endpoint: &'a Uri,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         Box::pin(async move {
             for duration in self.backoff_sequence.iter() {
@@ -435,17 +435,18 @@ mod tests {
     }
 
     #[test]
-    fn build() {
+    fn build() -> Result<()> {
         let client = ClientBuilder::new("0000")
             .backoff_factor(Duration::from_secs(2))
             .retries_max(6)
-            .endpoint_traces("https://127.0.0.1", Some(8080))
+            .endpoint_traces("127.0.0.1", Some(8080))
             .product_info("Test", "1.0")
-            .build();
+            .build()?;
 
         assert_eq!(client.api_key, "0000");
-        assert_eq!(client.endpoint_traces.host, "https://127.0.0.1");
-        assert_eq!(client.endpoint_traces.port, Some(8080));
+        assert_eq!(client.endpoint_traces.host(), Some("127.0.0.1"));
+        assert_eq!(client.endpoint_traces.port_u16(), Some(8080));
+        assert_eq!(client.endpoint_traces.scheme().unwrap().as_str(), "https");
         assert_eq!(
             client.user_agent,
             format!("NewRelic-Rust-TelemetrySDK/{} Test/1.0", VERSION)
@@ -457,6 +458,17 @@ mod tests {
                 .map(|d| Duration::from_secs(d))
                 .collect::<Vec<Duration>>()
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn build_error() {
+        let client = ClientBuilder::new("0000")
+            .endpoint_traces(":80", Some(8080))
+            .build();
+
+        assert!(client.is_err());
     }
 
     #[test]
@@ -623,7 +635,7 @@ mod tests {
     #[test]
     fn request() -> Result<()> {
         let batch = Box::new(TestBatch);
-        let client = ClientBuilder::new("").build();
+        let client = ClientBuilder::new("").build()?;
         let endpoint = Endpoint {
             host: "host".to_string(),
             path: TRACE_API_PATH,
@@ -658,7 +670,7 @@ mod tests {
     #[test]
     fn request_port() -> Result<()> {
         let batch = Box::new(TestBatch);
-        let client = ClientBuilder::new("").build();
+        let client = ClientBuilder::new("").build()?;
         let endpoint = Endpoint {
             host: "host".to_string(),
             path: TRACE_API_PATH,
