@@ -499,7 +499,7 @@ mod tests {
 
             assert_eq!(
                 Client::process_response(&*batch, response),
-                SendableState::Split
+                SendableState::Done
             );
         }
 
@@ -514,7 +514,7 @@ mod tests {
 
             assert_eq!(
                 Client::process_response(&*batch, response),
-                SendableState::Retry(Some(Duration::from_secs(7)))
+                SendableState::Done
             );
         }
 
