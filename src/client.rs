@@ -1,10 +1,15 @@
 use anyhow::{anyhow, Result};
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use hyper::client::HttpConnector;
 use hyper::header::{CONTENT_ENCODING, CONTENT_TYPE, USER_AGENT};
 use hyper::{Body, HeaderMap, Method, Request, Response, Uri};
+use hyper_tls::HttpsConnector;
 use log::{debug, error, info};
+use std::future::Future;
 use std::io::Write;
+use std::pin::Pin;
+use std::thread;
 use std::time::Duration;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -262,10 +267,12 @@ pub struct Client {
     user_agent: String,
     backoff_sequence: Vec<Duration>,
     endpoint_traces: Endpoint,
+    client: hyper::Client<HttpsConnector<HttpConnector>>,
 }
 
 impl Client {
     pub fn new(builder: ClientBuilder) -> Self {
+        let https = HttpsConnector::new();
         let user_agent = builder.get_user_agent_header();
         let backoff_seq = builder.get_backoff_sequence();
 
@@ -274,6 +281,7 @@ impl Client {
             endpoint_traces: builder.endpoint_traces,
             user_agent: user_agent,
             backoff_sequence: backoff_seq,
+            client: hyper::Client::builder().build::<_, hyper::Body>(https),
         }
     }
 
