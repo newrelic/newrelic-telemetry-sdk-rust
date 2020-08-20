@@ -695,7 +695,6 @@ mod tests {
         Ok(())
     }
 
-    #[test]
     fn process_response_success() -> Result<()> {
         for code in 200..300 {
             let batch = Box::new(TestBatch);
