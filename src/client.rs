@@ -68,8 +68,6 @@ impl Endpoint {
 
         Ok(uri.parse::<Uri>()?)
     }
-=======
->>>>>>> Add Endpoint struct
 }
 
 /// `ClientBuilder` acts as builder for initializing a `Client`.
