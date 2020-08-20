@@ -2,12 +2,13 @@ use anyhow::{anyhow, Result};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use hyper::header::{CONTENT_ENCODING, CONTENT_TYPE, USER_AGENT};
-use hyper::{Body, HeaderMap, Method, Request, Response};
+use hyper::{Body, HeaderMap, Method, Request, Response, Uri};
 use log::{debug, error, info};
 use std::io::Write;
 use std::time::Duration;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const TRACE_API_PATH: &'static str = "trace/v1";
 
 /// Types that can be sent to a New Relic ingest API
 ///
@@ -34,6 +35,7 @@ pub trait Sendable: std::fmt::Display + Send {
 }
 
 // Represents a New Relic ingest endpoint.
+#[derive(Debug)]
 struct Endpoint {
     // The host name or address of the endpoint.
     host: String,
@@ -41,6 +43,25 @@ struct Endpoint {
     // The port of the endpoint. This is optional, if not given it will default
     // to the standard HTTPS port.
     port: Option<u16>,
+
+    // The path for the endpoint.
+    path: &'static str,
+}
+
+impl Endpoint {
+    // Create an URI from an endpoint.
+    //
+    // This uses the parser of `hyper::Uri` to validate the URI.
+    fn uri(&self) -> Result<Uri> {
+        let port_str = match self.port {
+            Some(p) => format!(":{}", p),
+            _ => "".to_string(),
+        };
+
+        let uri = format!("https://{}{}/{}", self.host, port_str, self.path);
+
+        Ok(uri.parse::<Uri>()?)
+    }
 }
 
 /// `ClientBuilder` acts as builder for initializing a `Client`.
@@ -88,6 +109,7 @@ impl ClientBuilder {
             endpoint_traces: Endpoint {
                 host: "trace-api.newrelic.com".to_string(),
                 port: None,
+                path: TRACE_API_PATH,
             },
             product_info: None,
         }
@@ -160,6 +182,7 @@ impl ClientBuilder {
     pub fn endpoint_traces(mut self, url: &str, port: Option<u16>) -> Self {
         self.endpoint_traces = Endpoint {
             host: url.to_string(),
+            path: TRACE_API_PATH,
             port: port,
         };
         self
@@ -257,22 +280,9 @@ impl Client {
     }
 
     // Create a request from the given batch and endpoint.
-    fn request<'a>(
-        &self,
-        batch: &(dyn Sendable + 'a),
-        endpoint: &Endpoint,
-    ) -> Result<Request<Body>> {
+    fn request<'a>(&self, batch: &(dyn Sendable + 'a), endpoint: &Uri) -> Result<Request<Body>> {
         let raw = batch.marshall()?;
         let gzipped = Self::to_gzip(&raw)?;
-
-        let endpoint = format!(
-            "https://{}{}/traces/v1",
-            endpoint.host,
-            match endpoint.port {
-                Some(port) => format!(":{}", port),
-                _ => "".to_string(),
-            }
-        );
 
         Ok(Request::builder()
             .method(Method::POST)
@@ -332,7 +342,7 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
-    use super::{Client, ClientBuilder, Endpoint, Sendable, SendableState, VERSION};
+    use super::*;
     use anyhow::Result;
     use flate2::read::GzDecoder;
     use hyper::header::{HeaderValue, CONTENT_ENCODING, CONTENT_TYPE, USER_AGENT};
@@ -357,6 +367,53 @@ mod tests {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(f, "<TestBatch>")
         }
+    }
+
+    #[test]
+    fn uri_from_endpoint_ok() -> Result<()> {
+        let endpoint = Endpoint {
+            host: "host".to_string(),
+            path: TRACE_API_PATH,
+            port: Some(80),
+        };
+
+        let uri = endpoint.uri()?;
+        assert_eq!(uri.host(), Some("host"));
+        assert_eq!(uri.port_u16(), Some(80));
+        assert_eq!(uri.path(), "/trace/v1");
+        assert_eq!(uri.scheme().unwrap().as_str(), "https");
+
+        Ok(())
+    }
+
+    #[test]
+    fn uri_from_endpoint_error() -> Result<()> {
+        for endpoint in vec![
+            Endpoint {
+                host: "host:80".to_string(),
+                path: TRACE_API_PATH,
+                port: Some(80),
+            },
+            Endpoint {
+                host: "?".to_string(),
+                path: TRACE_API_PATH,
+                port: Some(80),
+            },
+            Endpoint {
+                host: "".to_string(),
+                path: TRACE_API_PATH,
+                port: None,
+            },
+        ] {
+            let uri = endpoint.uri();
+
+            assert!(
+                uri.is_err(),
+                format!("Could create an uri from {:?}: {:?}", endpoint, uri)
+            );
+        }
+
+        Ok(())
     }
 
     #[test]
@@ -483,14 +540,15 @@ mod tests {
         };
         let endpoint = Endpoint {
             host: "host".to_string(),
+            path: TRACE_API_PATH,
             port: None,
         };
 
-        let request = client.request(&*batch, &endpoint)?;
+        let request = client.request(&*batch, &endpoint.uri()?)?;
 
         assert_eq!(request.uri().port(), None);
         assert_eq!(request.uri().host(), Some("host"));
-        assert_eq!(request.uri().path(), "/traces/v1");
+        assert_eq!(request.uri().path(), "/trace/v1");
         assert_eq!(request.method(), Method::POST);
 
         let headers = request.headers();
@@ -520,14 +578,15 @@ mod tests {
         };
         let endpoint = Endpoint {
             host: "host".to_string(),
+            path: TRACE_API_PATH,
             port: Some(80),
         };
 
-        let request = client.request(&*batch, &endpoint)?;
+        let request = client.request(&*batch, &endpoint.uri()?)?;
 
         assert_eq!(request.uri().port().unwrap().as_u16(), 80);
         assert_eq!(request.uri().host(), Some("host"));
-        assert_eq!(request.uri().path(), "/traces/v1");
+        assert_eq!(request.uri().path(), "/trace/v1");
 
         Ok(())
     }
