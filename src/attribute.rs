@@ -52,36 +52,14 @@ pub enum Value {
     Bool(bool),
 }
 
-/// Types whose values can be converted to attribute values.
-///
-/// If a type implements `ToValue`, it can be converted into an attribute value:
-/// ```
-/// # use newrelic_telemetry::attribute::{Value, ToValue};
-/// #
-/// let duration = 3.14159;
-/// let name = "root";
-///
-/// let mut v: Value = duration.to_attribute_value();
-/// v = name.to_attribute_value();
-/// ```
-pub trait ToValue {
-    fn to_attribute_value(&self) -> Value;
-}
-
 /// Converts an i64 to an attribute value.
 ///
 /// ```
-/// # use newrelic_telemetry::attribute::{Value, ToValue};
+/// # use newrelic_telemetry::attribute::Value;
 /// #
 /// let v: i64 = -5;
-/// assert_eq!(v.to_attribute_value(), Value::Int(-5));
+/// assert_eq!(Value::Int(-5), v.into());
 /// ```
-impl ToValue for i64 {
-    fn to_attribute_value(&self) -> Value {
-        Value::Int(*self)
-    }
-}
-
 impl From<i64> for Value {
     fn from(value: i64) -> Value {
         Value::Int(value)
@@ -91,17 +69,11 @@ impl From<i64> for Value {
 /// Converts an i32 to an attribute value.
 ///
 /// ```
-/// # use newrelic_telemetry::attribute::{Value, ToValue};
+/// # use newrelic_telemetry::attribute::Value;
 /// #
 /// let v: i32 = -5;
-/// assert_eq!(v.to_attribute_value(), Value::Int(-5));
+/// assert_eq!(Value::Int(-5), v.into());
 /// ```
-impl ToValue for i32 {
-    fn to_attribute_value(&self) -> Value {
-        Value::Int(*self as i64)
-    }
-}
-
 impl From<i32> for Value {
     fn from(value: i32) -> Value {
         Value::Int(value as i64)
@@ -111,17 +83,11 @@ impl From<i32> for Value {
 /// Converts a u64 to an attribute value.
 ///
 /// ```
-/// # use newrelic_telemetry::attribute::{Value, ToValue};
+/// # use newrelic_telemetry::attribute::Value;
 /// #
 /// let v: u64 = 5;
-/// assert_eq!(v.to_attribute_value(), Value::UInt(5));
+/// assert_eq!(Value::UInt(5), v.into());
 /// ```
-impl ToValue for u64 {
-    fn to_attribute_value(&self) -> Value {
-        Value::UInt(*self)
-    }
-}
-
 impl From<u64> for Value {
     fn from(value: u64) -> Value {
         Value::UInt(value)
@@ -131,17 +97,11 @@ impl From<u64> for Value {
 /// Converts a u32 to an attribute value.
 ///
 /// ```
-/// # use newrelic_telemetry::attribute::{Value, ToValue};
+/// # use newrelic_telemetry::attribute::Value;
 /// #
 /// let v: u32 = 5;
-/// assert_eq!(v.to_attribute_value(), Value::UInt(5));
+/// assert_eq!(Value::UInt(5), v.into());
 /// ```
-impl ToValue for u32 {
-    fn to_attribute_value(&self) -> Value {
-        Value::UInt(*self as u64)
-    }
-}
-
 impl From<u32> for Value {
     fn from(value: u32) -> Value {
         Value::UInt(value as u64)
@@ -151,17 +111,11 @@ impl From<u32> for Value {
 /// Converts a string to an attribute value.
 ///
 /// ```
-/// # use newrelic_telemetry::attribute::{Value, ToValue};
+/// # use newrelic_telemetry::attribute::Value;
 /// #
 /// let v = "root";
-/// assert_eq!(v.to_attribute_value(), Value::Str(String::from("root")));
+/// assert_eq!(Value::Str(String::from("root")), v.into());
 /// ```
-impl ToValue for &str {
-    fn to_attribute_value(&self) -> Value {
-        Value::Str(self.to_string())
-    }
-}
-
 impl From<&str> for Value {
     fn from(value: &str) -> Value {
         Value::Str(value.to_string())
@@ -171,17 +125,11 @@ impl From<&str> for Value {
 /// Converts a f64 to an attribute value.
 ///
 /// ```
-/// # use newrelic_telemetry::attribute::{Value, ToValue};
+/// # use newrelic_telemetry::attribute::Value;
 /// #
 /// let v: f64 = 3.14159;
-/// assert_eq!(v.to_attribute_value(), Value::Float(v));
+/// assert_eq!(Value::Float(v), v.into());
 /// ```
-impl ToValue for f64 {
-    fn to_attribute_value(&self) -> Value {
-        Value::Float(*self)
-    }
-}
-
 impl From<f64> for Value {
     fn from(value: f64) -> Value {
         Value::Float(value)
@@ -191,17 +139,11 @@ impl From<f64> for Value {
 /// Converts a f32 to an attribute value.
 ///
 /// ```
-/// # use newrelic_telemetry::attribute::{Value, ToValue};
+/// # use newrelic_telemetry::attribute::Value;
 /// #
 /// let v: f32 = 3.14159;
-/// assert_eq!(v.to_attribute_value(), Value::Float(v as f64));
+/// assert_eq!(Value::Float(v as f64), v.into());
 /// ```
-impl ToValue for f32 {
-    fn to_attribute_value(&self) -> Value {
-        Value::Float(*self as f64)
-    }
-}
-
 impl From<f32> for Value {
     fn from(value: f32) -> Value {
         Value::Float(value as f64)
@@ -211,17 +153,11 @@ impl From<f32> for Value {
 /// Converts a bool to an attribute value.
 ///
 /// ```
-/// # use newrelic_telemetry::attribute::{Value, ToValue};
+/// # use newrelic_telemetry::attribute::Value;
 /// #
 /// let v = true;
-/// assert_eq!(v.to_attribute_value(), Value::Bool(true));
+/// assert_eq!(Value::Bool(true), v.into());
 /// ```
-impl ToValue for bool {
-    fn to_attribute_value(&self) -> Value {
-        Value::Bool(*self)
-    }
-}
-
 impl From<bool> for Value {
     fn from(value: bool) -> Value {
         Value::Bool(value)
