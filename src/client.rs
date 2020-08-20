@@ -384,6 +384,7 @@ mod tests {
             write!(f, "<TestBatch>")
         }
     }
+
     #[test]
     fn build() {
         let client = ClientBuilder::new("0000")
@@ -490,7 +491,6 @@ mod tests {
         Ok(())
     }
 
-    #[test]
     fn process_response_success() -> Result<()> {
         for code in 200..300 {
             let batch = Box::new(TestBatch);
