@@ -268,11 +268,10 @@ impl Client {
     pub fn new(builder: ClientBuilder) -> Self {
         let user_agent = builder.get_user_agent_header();
         let backoff_seq = builder.get_backoff_sequence();
-        let endpoint_traces = builder.endpoint_traces;
 
         Client {
             api_key: builder.api_key,
-            endpoint_traces: endpoint_traces,
+            endpoint_traces: builder.endpoint_traces,
             user_agent: user_agent,
             backoff_sequence: backoff_seq,
         }
