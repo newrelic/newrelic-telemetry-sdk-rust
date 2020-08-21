@@ -76,14 +76,18 @@ impl Endpoint {
 /// maximum, and the product info.
 ///
 /// ```
+/// # use anyhow::Result;
 /// # use newrelic_telemetry::ClientBuilder;
 /// # use std::time::Duration;
+/// # fn main() -> Result<()> {
 /// # let api_key = "";
 /// let mut builder = ClientBuilder::new(api_key);
 ///
 /// let client = builder.backoff_factor(Duration::from_secs(10))
 ///                     .product_info("RustDoc", "1.0")
 ///                     .build()?;
+/// # Ok(())
+/// # }
 /// ```
 pub struct ClientBuilder {
     api_key: String,
@@ -216,11 +220,15 @@ impl ClientBuilder {
     /// Build a client.
     ///
     /// ```
+    /// # use anyhow::Result;
     /// # use newrelic_telemetry::ClientBuilder;
+    /// # fn main() -> Result<()> {
     /// # let api_key = "";
     /// let builder = ClientBuilder::new(api_key);
     ///
     /// let client = builder.build()?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn build(self) -> Result<Client> {
         Client::new(self)
