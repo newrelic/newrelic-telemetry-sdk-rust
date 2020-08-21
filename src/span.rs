@@ -1,5 +1,6 @@
 use crate::attribute::Value;
 use std::collections::HashMap;
+use std::time::Duration;
 
 /// Represents a distributed tracing span.
 #[derive(serde::Serialize, Debug, PartialEq)]
@@ -67,12 +68,12 @@ impl Span {
     }
 
     /// Set the duration (in milliseconds) of this span.
-    pub fn duration(self, duration: u64) -> Self {
-        self.attribute("duration.ms", duration)
+    pub fn duration(self, duration: Duration) -> Self {
+        self.attribute("duration.ms", duration.as_millis())
     }
 
-    pub fn set_duration(&mut self, duration: u64) {
-        self.set_attribute("duration.ms", duration);
+    pub fn set_duration(&mut self, duration: Duration) {
+        self.set_attribute("duration.ms", duration.as_millis());
     }
 
     /// Set the id of the previous caller of this span.
@@ -109,6 +110,7 @@ mod tests {
     use super::Span;
     use crate::attribute::Value;
     use serde_json::json;
+    use std::time::Duration;
 
     #[test]
     fn test_set_id() {
@@ -179,11 +181,11 @@ mod tests {
         );
 
         // Test duration attribute
-        span.set_duration(1);
-        assert_eq!(span.attributes.get("duration.ms"), Some(&Value::UInt(1)));
+        span.set_duration(Duration::from_millis(10));
+        assert_eq!(span.attributes.get("duration.ms"), Some(&Value::UInt128(10)));
 
-        span = span.duration(2);
-        assert_eq!(span.attributes.get("duration.ms"), Some(&Value::UInt(2)));
+        span = span.duration(Duration::from_millis(20));
+        assert_eq!(span.attributes.get("duration.ms"), Some(&Value::UInt128(20)));
 
         // Test parent id attribute
         span.set_parent_id("parent");

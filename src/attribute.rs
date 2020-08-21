@@ -24,6 +24,24 @@ pub enum Value {
     /// ```
     UInt(u64),
 
+    /// Represents a signed 128 bit integer attribute value.
+    ///
+    /// ```
+    /// # use newrelic_telemetry::attribute::Value;
+    /// #
+    /// let v = Value::Int128(-30);
+    /// ```
+    Int128(i128),
+
+    /// Represents an unsigned 128 bit integer attribute value.
+    ///
+    /// ```
+    /// # use newrelic_telemetry::attribute::Value;
+    /// #
+    /// let v = Value::UInt128(30);
+    /// ```
+    UInt128(u128),
+
     /// Represents a string attribute value.
     ///
     /// ```
@@ -52,6 +70,20 @@ pub enum Value {
     Bool(bool),
 }
 
+/// Converts an i128 to an attribute value.
+///
+/// ```
+/// # use newrelic_telemetry::attribute::Value;
+/// #
+/// let v: i128 = -10;
+/// assert_eq!(Value::Int128(-10), v.into());
+/// ```
+impl From<i128> for Value {
+    fn from(value: i128) -> Value {
+        Value::Int128(value)
+    }
+}
+
 /// Converts an i64 to an attribute value.
 ///
 /// ```
@@ -77,6 +109,20 @@ impl From<i64> for Value {
 impl From<i32> for Value {
     fn from(value: i32) -> Value {
         Value::Int(value as i64)
+    }
+}
+
+/// Converts a u128 to an attribute value.
+///
+/// ```
+/// # use newrelic_telemetry::attribute::Value;
+/// #
+/// let v: u128 = 50;
+/// assert_eq!(Value::UInt128(50), v.into());
+/// ```
+impl From<u128> for Value {
+    fn from(value: u128) -> Value {
+        Value::UInt128(value)
     }
 }
 
