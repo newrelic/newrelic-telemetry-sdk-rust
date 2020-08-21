@@ -280,7 +280,7 @@ impl Client {
 
         Ok(Client {
             api_key: builder.api_key,
-            endpoint_traces: endpoint_traces.uri()?,
+            endpoint_traces: builder.endpoint_traces.uri()?,
             user_agent: user_agent,
             backoff_sequence: backoff_seq,
             client: hyper::Client::builder().build::<_, hyper::Body>(https),
