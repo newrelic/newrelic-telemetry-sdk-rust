@@ -83,7 +83,7 @@ impl Endpoint {
 ///
 /// let client = builder.backoff_factor(Duration::from_secs(10))
 ///                     .product_info("RustDoc", "1.0")
-///                     .build();
+///                     .build()?;
 /// ```
 pub struct ClientBuilder {
     api_key: String,
@@ -220,7 +220,7 @@ impl ClientBuilder {
     /// # let api_key = "";
     /// let builder = ClientBuilder::new(api_key);
     ///
-    /// let client = builder.build();
+    /// let client = builder.build()?;
     /// ```
     pub fn build(self) -> Result<Client> {
         Client::new(self)
