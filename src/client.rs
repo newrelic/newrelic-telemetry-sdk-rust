@@ -5,6 +5,7 @@ use hyper::client::HttpConnector;
 use hyper::header::{CONTENT_ENCODING, CONTENT_TYPE, USER_AGENT};
 use hyper::{Body, HeaderMap, Method, Request, Response, Uri};
 use hyper_tls::HttpsConnector;
+use crate::span::SpanBatch;
 use log::{debug, error, info};
 use std::future::Future;
 use std::io::Write;
@@ -271,6 +272,7 @@ pub struct Client {
 }
 
 impl Client {
+    /// Constructs a `Client` from a `ClientBuilder`.
     pub fn new(builder: ClientBuilder) -> Result<Self> {
         let https = HttpsConnector::new();
         let user_agent = builder.get_user_agent_header();
@@ -283,6 +285,15 @@ impl Client {
             backoff_sequence: backoff_seq,
             client: hyper::Client::builder().build::<_, hyper::Body>(https),
         })
+    }
+
+    /// Sends a span batch.
+    ///
+    /// This asynchronously sends a span batch, encapsulating retry and backoff
+    /// mechanisms defined in the [specification](https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/communication.md)
+    /// and customized via the `ClientBuilder`.
+    pub async fn send_spans(&self, batch: Box<SpanBatch>) {
+        self.send(batch, &self.endpoint_traces).await
     }
 
     // Returns a gzip compressed version of the given string.
@@ -327,17 +338,19 @@ impl Client {
 
                 let status = Self::process_response(&*batch, response);
 
-                match status {
+                let duration = match status {
                     SendableState::Done => return,
-                    SendableState::Retry(Some(duration)) => thread::sleep(duration),
+                    SendableState::Retry(Some(duration)) => duration,
                     SendableState::Split => {
                         let batch2 = batch.split();
                         self.send(batch, endpoint).await;
                         self.send(batch2, endpoint).await;
                         return;
                     }
-                    _ => {}
-                }
+                    _ => *duration,
+                };
+
+                thread::sleep(duration);
             }
         })
     }
