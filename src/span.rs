@@ -1,5 +1,8 @@
 use crate::attribute::Value;
+use crate::client::Sendable;
+use anyhow::Result;
 use std::collections::HashMap;
+use std::fmt;
 use std::time::Duration;
 
 /// Represents a distributed tracing span.
@@ -182,10 +185,16 @@ mod tests {
 
         // Test duration attribute
         span.set_duration(Duration::from_millis(10));
-        assert_eq!(span.attributes.get("duration.ms"), Some(&Value::UInt128(10)));
+        assert_eq!(
+            span.attributes.get("duration.ms"),
+            Some(&Value::UInt128(10))
+        );
 
         span = span.duration(Duration::from_millis(20));
-        assert_eq!(span.attributes.get("duration.ms"), Some(&Value::UInt128(20)));
+        assert_eq!(
+            span.attributes.get("duration.ms"),
+            Some(&Value::UInt128(20))
+        );
 
         // Test parent id attribute
         span.set_parent_id("parent");
@@ -279,5 +288,23 @@ mod tests {
 
         span = span.attribute("attr.bool", false);
         assert_eq!(span.attributes.get("attr.bool"), Some(&Value::Bool(false)));
+    }
+}
+
+pub struct SpanBatch;
+
+impl Sendable for SpanBatch {
+    fn marshall(&self) -> Result<String> {
+        Ok("".to_string())
+    }
+
+    fn split(&mut self) -> Box<dyn Sendable> {
+        Box::new(SpanBatch)
+    }
+}
+
+impl fmt::Display for SpanBatch {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<SpanBatch>")
     }
 }
