@@ -6,7 +6,6 @@ use hyper::client::HttpConnector;
 use hyper::header::{CONTENT_ENCODING, CONTENT_TYPE, USER_AGENT};
 use hyper::{Body, HeaderMap, Method, Request, Response, Uri};
 use hyper_tls::HttpsConnector;
-use crate::span::SpanBatch;
 use log::{debug, error, info};
 use std::future::Future;
 use std::io::Write;
@@ -631,7 +630,6 @@ mod tests {
         Ok(())
     }
 
-
     #[test]
     fn uri_from_endpoint_error() -> Result<()> {
         for endpoint in vec![
@@ -696,6 +694,7 @@ mod tests {
         Ok(())
     }
 
+    #[test]
     fn process_response_success() -> Result<()> {
         for code in 200..300 {
             let batch = Box::new(TestBatch);

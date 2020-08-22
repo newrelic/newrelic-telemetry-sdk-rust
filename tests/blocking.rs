@@ -6,7 +6,6 @@ mod blocking {
     use super::common;
     use anyhow::Result;
     use common::Endpoint;
-    use log::error;
     use newrelic_telemetry::{blocking::Client, ClientBuilder, SpanBatch};
     use std::thread;
     use std::time::Duration;
