@@ -513,7 +513,7 @@ pub mod blocking {
 
             Ok(Client {
                 channel: Mutex::new(tx),
-                handle: handle,
+                handle,
             })
         }
 
