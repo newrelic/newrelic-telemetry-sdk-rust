@@ -1,3 +1,4 @@
+use crate::span::SpanBatch;
 use anyhow::{anyhow, Result};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -5,7 +6,6 @@ use hyper::client::HttpConnector;
 use hyper::header::{CONTENT_ENCODING, CONTENT_TYPE, USER_AGENT};
 use hyper::{Body, HeaderMap, Method, Request, Response, Uri};
 use hyper_tls::HttpsConnector;
-use crate::span::SpanBatch;
 use log::{debug, error, info};
 use std::future::Future;
 use std::io::Write;
