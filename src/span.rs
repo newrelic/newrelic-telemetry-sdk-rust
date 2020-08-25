@@ -62,49 +62,75 @@ impl Span {
     }
 
     /// Set the name of this span.
-    pub fn name(self, name: &str) -> Self {
-        self.attribute("name", name)
+    pub fn name(mut self, name: &str) -> Self {
+        self.attributes.insert("name".to_string(), name.into());
+        self
     }
 
     pub fn set_name(&mut self, name: &str) {
-        self.set_attribute("name", name);
+        self.attributes.insert("name".to_string(), name.into());
     }
 
     /// Set the duration (in milliseconds) of this span.
-    pub fn duration(self, duration: Duration) -> Self {
-        self.attribute("duration.ms", duration.as_millis())
+    pub fn duration(mut self, duration: Duration) -> Self {
+        self.attributes
+            .insert("duration.ms".to_string(), duration.as_millis().into());
+        self
     }
 
     pub fn set_duration(&mut self, duration: Duration) {
-        self.set_attribute("duration.ms", duration.as_millis());
+        self.attributes
+            .insert("duration.ms".to_string(), duration.as_millis().into());
     }
 
     /// Set the id of the previous caller of this span.
-    pub fn parent_id(self, parent_id: &str) -> Self {
-        self.attribute("parent.id", parent_id)
+    pub fn parent_id(mut self, parent_id: &str) -> Self {
+        self.attributes
+            .insert("parent.id".to_string(), parent_id.into());
+        self
     }
 
     pub fn set_parent_id(&mut self, parent_id: &str) {
-        self.set_attribute("parent.id", parent_id);
+        self.attributes
+            .insert("parent.id".to_string(), parent_id.into());
     }
 
     /// Set the name of the service that created this span.
-    pub fn service_name(self, service_name: &str) -> Self {
-        self.attribute("service.name", service_name)
+    pub fn service_name(mut self, service_name: &str) -> Self {
+        self.attributes
+            .insert("service.name".to_string(), service_name.into());
+        self
     }
 
     pub fn set_service_name(&mut self, service_name: &str) {
-        self.set_attribute("service.name", service_name);
+        self.attributes
+            .insert("service.name".to_string(), service_name.into());
     }
 
     /// Set an attribute on the span.
     pub fn attribute<T: Into<Value>>(mut self, key: &str, value: T) -> Self {
-        self.attributes.insert(key.to_string(), value.into());
+        if !self.is_reserved_key(&key) {
+            self.attributes.insert(key.to_string(), value.into());
+        }
         self
     }
 
     pub fn set_attribute<T: Into<Value>>(&mut self, key: &str, value: T) {
-        self.attributes.insert(key.to_string(), value.into());
+        if !self.is_reserved_key(&key) {
+            self.attributes.insert(key.to_string(), value.into());
+        }
+    }
+
+    /// These reserved attribute keys have their own setter functions. This is 
+    /// used to ensure they aren't set using the attribute() and set_attribute()
+    /// functions that won't guarantee the type of these reserved key:value pairs
+    fn is_reserved_key(&self, key: &str) -> bool {
+        let list = ["name", "duration.ms", "parent.id", "service.name"];
+        if list.contains(&key) {
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -167,28 +193,38 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute() {
+    fn test_name_attribute() {
         let mut span = Span::new("id", "traceId", 1);
 
-        // Test name attribute
-        span.set_name("name");
+        span.set_name("span name");
         assert_eq!(
             span.attributes.get("name"),
-            Some(&Value::Str(String::from("name")))
+            Some(&Value::Str(String::from("span name")))
         );
 
-        span = span.name("name2");
+        span = span.name("span name 2");
         assert_eq!(
             span.attributes.get("name"),
-            Some(&Value::Str(String::from("name2")))
+            Some(&Value::Str(String::from("span name 2")))
         );
 
-        // Test duration attribute
+        span.attributes.remove("name");
+        assert_eq!(span.attributes.contains_key("name"), false);
+
+        // Test name attribute can't be set with attribute modifier
+        span.set_attribute("name", "I can't be named");
+        assert_eq!(span.attributes.contains_key("name"), false);
+
+        span = span.attribute("name", "I still can't be named");
+        assert_eq!(span.attributes.contains_key("name"), false);
+    }
+
+    #[test]
+    fn test_duration_attribute() {
+        let mut span = Span::new("id", "traceId", 1);
+
         span.set_duration(Duration::from_millis(10));
-        assert_eq!(
-            span.attributes.get("duration.ms"),
-            Some(&Value::UInt128(10))
-        );
+        assert_eq!(span.attributes.get("duration.ms"), Some(&Value::UInt128(10)));
 
         span = span.duration(Duration::from_millis(20));
         assert_eq!(
@@ -196,31 +232,69 @@ mod tests {
             Some(&Value::UInt128(20))
         );
 
-        // Test parent id attribute
-        span.set_parent_id("parent");
+        span.attributes.remove("duration.ms");
+        assert_eq!(span.attributes.contains_key("duration.ms"), false);
+
+        // Test duration.ms attribute can't be set with attribute modifier
+        span.set_attribute("duration.ms", 3);
+        assert_eq!(span.attributes.contains_key("duration.ms"), false);
+
+        span = span.attribute("duration.ms", 4);
+        assert_eq!(span.attributes.contains_key("duration.ms"), false);
+    }
+
+    #[test]
+    fn test_parent_id_attribute() {
+        let mut span = Span::new("id", "traceId", 1);
+
+        span.set_parent_id("span parent id");
         assert_eq!(
             span.attributes.get("parent.id"),
-            Some(&Value::Str(String::from("parent")))
+            Some(&Value::Str(String::from("span parent id")))
         );
 
-        span = span.parent_id("parent2");
+        span = span.parent_id("span parent id 2");
         assert_eq!(
             span.attributes.get("parent.id"),
-            Some(&Value::Str(String::from("parent2")))
+            Some(&Value::Str(String::from("span parent id 2")))
         );
 
-        // Test service name attribute
-        span.set_service_name("serviceName");
+        span.attributes.remove("parent.id");
+        assert_eq!(span.attributes.contains_key("parent.id"), false);
+
+        // Test parent.id attribute can't be set with attribute modifier
+        span.set_attribute("parent.id", "parent id not added");
+        assert_eq!(span.attributes.contains_key("parent.id"), false);
+
+        span = span.attribute("parent.id", "parent id still not added");
+        assert_eq!(span.attributes.contains_key("parent.id"), false);
+    }
+
+    #[test]
+    fn test_service_name_attribute() {
+        let mut span = Span::new("id", "traceId", 1);
+
+        span.set_service_name("span service name");
         assert_eq!(
             span.attributes.get("service.name"),
-            Some(&Value::Str(String::from("serviceName")))
+            Some(&Value::Str(String::from("span service name")))
         );
 
-        span = span.service_name("serviceName2");
+        span = span.service_name("span service name 2");
         assert_eq!(
             span.attributes.get("service.name"),
-            Some(&Value::Str(String::from("serviceName2")))
+            Some(&Value::Str(String::from("span service name 2")))
         );
+
+        span.attributes.remove("service.name");
+        assert_eq!(span.attributes.contains_key("service.name"), false);
+
+        // Test service.name attribute can't be set with attribute modifier
+        span.set_attribute("service.name", "service name not added");
+        assert_eq!(span.attributes.contains_key("service.name"), false);
+
+        span = span.attribute("service.name", "service name still not added");
+        assert_eq!(span.attributes.contains_key("service.name"), false);
     }
 
     #[test]
