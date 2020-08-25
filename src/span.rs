@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
+use uuid::Uuid;
 
 /// Represents a distributed tracing span.
 #[derive(serde::Serialize, Clone, Debug, PartialEq)]
@@ -156,6 +157,9 @@ impl SpanBatchCommon {
 /// Encapsulates a collection of spans and the common data they share
 #[derive(serde::Serialize, Debug, PartialEq)]
 pub struct SpanBatch {
+    #[serde(skip_serializing)]
+    uuid: String,
+
     spans: Vec<Span>,
 
     /// A struct containing the common data of the batched spans. At this time,
@@ -168,6 +172,7 @@ impl SpanBatch {
     /// Creates a new `SpanBatch` with all collections empty.
     pub fn new() -> Box<Self> {
         Box::new(SpanBatch {
+            uuid: Uuid::new_v4().to_string(),
             spans: vec![],
             common: SpanBatchCommon::new(),
         })
@@ -203,6 +208,10 @@ impl SpanBatch {
 }
 
 impl Sendable for SpanBatch {
+    fn uuid(&self) -> &str {
+        &self.uuid
+    }
+
     /// Returns the span batch encoded as a json string in the format expected
     /// by the New Relic Telemetry API
     fn marshall(&self) -> Result<String> {
@@ -215,6 +224,7 @@ impl Sendable for SpanBatch {
         let new_batch_size: usize = self.spans.len() / 2;
 
         Box::new(SpanBatch {
+            uuid: Uuid::new_v4().to_string(),
             spans: self.spans.drain(new_batch_size..).collect(),
             common: self.common.clone(),
         })
