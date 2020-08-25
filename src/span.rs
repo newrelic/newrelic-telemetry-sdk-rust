@@ -121,7 +121,7 @@ impl Span {
         }
     }
 
-    /// These reserved attribute keys have their own setter functions. This is 
+    /// These reserved attribute keys have their own setter functions. This is
     /// used to ensure they aren't set using the attribute() and set_attribute()
     /// functions that won't guarantee the type of these reserved key:value pairs
     fn is_reserved_key(&self, key: &str) -> bool {
@@ -142,7 +142,7 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn test_set_id() {
+    fn id() {
         let mut span = Span::new("id1", "traceId1", 1);
         assert_eq!(span.id, "id1");
 
@@ -154,7 +154,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_trace_id() {
+    fn trace_id() {
         let mut span = Span::new("id1", "traceId1", 1);
         assert_eq!(span.trace_id, "traceId1");
 
@@ -166,7 +166,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_timestamp() {
+    fn timestamp() {
         let mut span = Span::new("id1", "traceId1", 1);
         assert_eq!(span.timestamp, 1);
 
@@ -193,7 +193,7 @@ mod tests {
     }
 
     #[test]
-    fn test_name_attribute() {
+    fn name_attribute() {
         let mut span = Span::new("id", "traceId", 1);
 
         span.set_name("span name");
@@ -220,11 +220,14 @@ mod tests {
     }
 
     #[test]
-    fn test_duration_attribute() {
+    fn duration_attribute() {
         let mut span = Span::new("id", "traceId", 1);
 
         span.set_duration(Duration::from_millis(10));
-        assert_eq!(span.attributes.get("duration.ms"), Some(&Value::UInt128(10)));
+        assert_eq!(
+            span.attributes.get("duration.ms"),
+            Some(&Value::UInt128(10))
+        );
 
         span = span.duration(Duration::from_millis(20));
         assert_eq!(
@@ -244,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parent_id_attribute() {
+    fn parent_id_attribute() {
         let mut span = Span::new("id", "traceId", 1);
 
         span.set_parent_id("span parent id");
@@ -271,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn test_service_name_attribute() {
+    fn service_name_attribute() {
         let mut span = Span::new("id", "traceId", 1);
 
         span.set_service_name("span service name");
@@ -298,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_type() {
+    fn attribute_type() {
         let mut span = Span::new("id", "traceId", 1);
 
         // Test String attribute
