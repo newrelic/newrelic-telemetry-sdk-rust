@@ -1,6 +1,7 @@
 use crate::attribute::Value;
 use crate::client::Sendable;
 use anyhow::Result;
+use log::{error};
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
@@ -111,6 +112,8 @@ impl Span {
     pub fn attribute<T: Into<Value>>(mut self, key: &str, value: T) -> Self {
         if !self.is_reserved_key(&key) {
             self.attributes.insert(key.to_string(), value.into());
+        } else {
+            error!("Unable to add attribute. {} is a reserved key", key);
         }
         self
     }
@@ -118,6 +121,8 @@ impl Span {
     pub fn set_attribute<T: Into<Value>>(&mut self, key: &str, value: T) {
         if !self.is_reserved_key(&key) {
             self.attributes.insert(key.to_string(), value.into());
+        } else {
+            error!("Unable to add attribute. {} is a reserved key", key);
         }
     }
 
@@ -125,12 +130,7 @@ impl Span {
     /// used to ensure they aren't set using the attribute() and set_attribute()
     /// functions that won't guarantee the type of these reserved key:value pairs
     fn is_reserved_key(&self, key: &str) -> bool {
-        let list = ["name", "duration.ms", "parent.id", "service.name"];
-        if list.contains(&key) {
-            true
-        } else {
-            false
-        }
+        ["name", "duration.ms", "parent.id", "service.name"].contains(&key)
     }
 }
 
