@@ -240,7 +240,7 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn test_set_id() {
+    fn span_set_id() {
         let mut span = Span::new("id1", "traceId1", 1);
         assert_eq!(span.id, "id1");
 
@@ -252,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_trace_id() {
+    fn span_set_trace_id() {
         let mut span = Span::new("id1", "traceId1", 1);
         assert_eq!(span.trace_id, "traceId1");
 
@@ -264,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_timestamp() {
+    fn span_set_timestamp() {
         let mut span = Span::new("id1", "traceId1", 1);
         assert_eq!(span.timestamp, 1);
 
@@ -291,7 +291,7 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute() {
+    fn span_attribute() {
         let mut span = Span::new("id", "traceId", 1);
 
         // Test name attribute
@@ -348,7 +348,7 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_type_span() {
+    fn span_attribute_type() {
         let mut span = Span::new("id", "traceId", 1);
 
         // Test String attribute
@@ -414,6 +414,7 @@ mod tests {
         assert_eq!(span.attributes.get("attr.bool"), Some(&Value::Bool(false)));
     }
 
+    /// Helper function to generate a simple SpanBatch
     fn span_vec(count: usize) -> Vec<Span> {
         let mut vec = Vec::new();
 
@@ -427,7 +428,7 @@ mod tests {
     }
 
     #[test]
-    fn test_spanbatch_split_partial() {
+    fn spanbatch_split_partial() {
         // Note: since SpanBatch::split() returns a Box<dyn Sendable>,
         // we cannot fully test split with regard to the returned
         // SpanBatch, only that the originally was drained as expected
@@ -455,7 +456,7 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_type_batch() {
+    fn spanbatch_attribute_type() {
         let mut batch = SpanBatch::new();
 
         // Test String attribute
@@ -531,7 +532,7 @@ mod tests {
     }
 
     #[test]
-    fn test_spanbatch_from() {
+    fn spanbatch_from() {
         let vec = span_vec(23);
         let batch = SpanBatch::from(vec.clone());
         assert_eq!(batch.spans, vec);
@@ -539,7 +540,7 @@ mod tests {
     }
 
     #[test]
-    fn test_spanbatch_record() {
+    fn spanbatch_record() {
         let mut batch = SpanBatch::new();
         let span = Span::new("id0", "trace_id0", 9);
         batch.record(span.clone());
@@ -548,7 +549,7 @@ mod tests {
     }
 
     #[test]
-    fn test_spanbatch_format() {
+    fn spanbatch_format() {
         let batch = SpanBatch::from(span_vec(23))
             .attribute("one", 1)
             .attribute("two", "too")
@@ -559,7 +560,7 @@ mod tests {
     }
 
     #[test]
-    fn test_spanbatch_attribute_chain() {
+    fn spanbatch_attribute_chain() {
         let batch = SpanBatch::new()
             .attribute("bad_dogs", 0)
             .attribute("howdy", "y'all");
