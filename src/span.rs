@@ -1,6 +1,10 @@
 use crate::attribute::Value;
 use crate::client::Sendable;
 use anyhow::Result;
+#[cfg(test)]
+use serde::{Serialize, Serializer};
+#[cfg(test)]
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
@@ -112,8 +116,21 @@ impl Span {
 /// At the moment, only `attributes` is defined.
 #[derive(serde::Serialize, Clone, Debug, PartialEq)]
 struct SpanBatchCommon {
+    // Only serialize if there is data.  If testing, sort data via a BTreeMap
     #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[cfg_attr(test, serde(serialize_with = "hash_to_btree"))]
     attributes: HashMap<String, Value>,
+}
+
+#[cfg(test)]
+fn hash_to_btree<S>(value: &HashMap<String, Value>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    value
+        .iter()
+        .collect::<BTreeMap<_, _>>()
+        .serialize(serializer)
 }
 
 impl SpanBatchCommon {
@@ -130,7 +147,7 @@ impl SpanBatchCommon {
     }
 
     /// Returns true if no common fields have values added to them.
-    /// This is primarily used to determinine omission during SpanBatch serialization
+    /// This is primarily used to determine omission during SpanBatch serialization
     fn is_empty(&self) -> bool {
         self.attributes.is_empty()
     }
@@ -416,6 +433,7 @@ mod tests {
         // SpanBatch, only that the originally was drained as expected
         // However, the integration tests cover both sides of this case.
         let mut batch = SpanBatch::from(span_vec(2));
+        let _second_batch = batch.split();
 
         assert_eq!(batch.spans.len(), 1);
         assert_eq!(batch.spans[0], Span::new("id0", "trace_id0", 1));
@@ -543,10 +561,10 @@ mod tests {
     #[test]
     fn test_spanbatch_attribute_chain() {
         let batch = SpanBatch::new()
-            .attribute("howdy", "y'all")
-            .attribute("bad_dogs", 0);
-        let expected_string = "{\"spans\":[],\"common\":{\
-            \"attributes\":{\"bad_dogs\":0,\"howdy\":\"y\'all\"}}}";
+            .attribute("bad_dogs", 0)
+            .attribute("howdy", "y'all");
+        let expected_string =
+            r#"{"spans":[],"common":{"attributes":{"bad_dogs":0,"howdy":"y'all"}}}"#;
         assert_eq!(batch.marshall().unwrap(), expected_string);
     }
 }
