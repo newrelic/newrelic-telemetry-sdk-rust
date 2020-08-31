@@ -1,3 +1,4 @@
+use crate::span::SpanBatch;
 use anyhow::{anyhow, Result};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -5,7 +6,6 @@ use hyper::client::HttpConnector;
 use hyper::header::{CONTENT_ENCODING, CONTENT_TYPE, USER_AGENT};
 use hyper::{Body, HeaderMap, Method, Request, Response, Uri};
 use hyper_tls::HttpsConnector;
-use crate::span::SpanBatch;
 use log::{debug, error, info};
 use std::future::Future;
 use std::io::Write;
@@ -57,14 +57,21 @@ struct Endpoint {
 impl Endpoint {
     // Create an URI from an endpoint.
     //
-    // This uses the parser of `hyper::Uri` to validate the URI.
-    fn uri(&self) -> Result<Uri> {
+    // This uses the parser of `hyper::Uri` to validate the URI and returns
+    // `https` or `http` URIs, based on the `use_tls` flag.
+    fn uri(&self, use_tls: bool) -> Result<Uri> {
         let port_str = match self.port {
             Some(p) => format!(":{}", p),
             _ => "".to_string(),
         };
 
-        let uri = format!("https://{}{}/{}", self.host, port_str, self.path);
+        let uri = format!(
+            "{}://{}{}/{}",
+            if use_tls { "https" } else { "http" },
+            self.host,
+            port_str,
+            self.path
+        );
 
         Ok(uri.parse::<Uri>()?)
     }
@@ -95,6 +102,7 @@ pub struct ClientBuilder {
     retries_max: u32,
     endpoint_traces: Endpoint,
     product_info: Option<(String, String)>,
+    use_tls: bool,
 }
 
 impl ClientBuilder {
@@ -122,6 +130,7 @@ impl ClientBuilder {
                 path: TRACE_API_PATH,
             },
             product_info: None,
+            use_tls: true,
         }
     }
 
@@ -217,6 +226,15 @@ impl ClientBuilder {
         self
     }
 
+    // Configure TLS usage.
+    //
+    // New Relic endpoints exclusively support HTTPS. This is mainly provided
+    // for testing purposes.
+    pub fn tls(mut self, tls: bool) -> Self {
+        self.use_tls = tls;
+        self
+    }
+
     /// Build a client.
     ///
     /// ```
@@ -232,6 +250,24 @@ impl ClientBuilder {
     /// ```
     pub fn build(self) -> Result<Client> {
         Client::new(self)
+    }
+
+    /// Build a blocking client.
+    ///
+    /// ```
+    /// # use anyhow::Result;
+    /// # use newrelic_telemetry::ClientBuilder;
+    /// # fn main() -> Result<()> {
+    /// # let api_key = "";
+    /// let builder = ClientBuilder::new(api_key);
+    ///
+    /// let client = builder.build_blocking()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "blocking")]
+    pub fn build_blocking(self) -> Result<blocking::Client> {
+        blocking::Client::new(self)
     }
 
     fn get_backoff_sequence(&self) -> Vec<Duration> {
@@ -288,7 +324,7 @@ impl Client {
 
         Ok(Client {
             api_key: builder.api_key,
-            endpoint_traces: builder.endpoint_traces.uri()?,
+            endpoint_traces: builder.endpoint_traces.uri(builder.use_tls)?,
             user_agent: user_agent,
             backoff_sequence: backoff_seq,
             client: hyper::Client::builder().build::<_, hyper::Body>(https),
@@ -300,8 +336,8 @@ impl Client {
     /// This asynchronously sends a span batch, encapsulating retry and backoff
     /// mechanisms defined in the [specification](https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/communication.md)
     /// and customized via the `ClientBuilder`.
-    pub async fn send_spans(&self, batch: Box<SpanBatch>) {
-        self.send(batch, &self.endpoint_traces).await
+    pub async fn send_spans(&self, batch: SpanBatch) {
+        self.send(Box::new(batch), &self.endpoint_traces).await
     }
 
     // Returns a gzip compressed version of the given string.
@@ -427,6 +463,74 @@ impl Client {
     }
 }
 
+#[cfg(feature = "blocking")]
+pub mod blocking {
+    use super::{ClientBuilder, SpanBatch};
+    use anyhow::Result;
+    use futures::future;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use tokio::runtime::Builder;
+
+    enum SendableType {
+        Spans(SpanBatch),
+    }
+
+    pub struct Client {
+        channel: Mutex<mpsc::Sender<Box<SendableType>>>,
+        handle: thread::JoinHandle<()>,
+    }
+
+    impl Client {
+        pub fn new(builder: ClientBuilder) -> Result<Self> {
+            let (tx, rx) = mpsc::channel::<Box<SendableType>>();
+            let mut runtime = Builder::new().threaded_scheduler().enable_all().build()?;
+            let client = builder.build()?;
+
+            let handle = thread::spawn(move || loop {
+                let mut batches = vec![];
+
+                // Wait until at least one batch is received.
+                batches.push(match rx.recv() {
+                    Ok(b) => b,
+                    Err(_) => break,
+                });
+
+                // Empty the channel.
+                loop {
+                    match rx.try_recv() {
+                        Ok(b) => batches.push(b),
+                        Err(_) => break,
+                    }
+                }
+
+                // Block until all batches are sent.
+                runtime.block_on(future::join_all(batches.drain(..).map(|b| match *b {
+                    SendableType::Spans(batch) => client.send_spans(batch),
+                })));
+            });
+
+            Ok(Client {
+                channel: Mutex::new(tx),
+                handle,
+            })
+        }
+
+        pub fn send_spans(&self, b: SpanBatch) {
+            if let Ok(ch) = self.channel.lock() {
+                if let Err(_) = ch.send(Box::new(SendableType::Spans(b))) {}
+            }
+        }
+
+        pub fn shutdown(self) {
+            drop(self.channel);
+
+            let _ = self.handle.join();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -500,7 +604,7 @@ mod tests {
             port: Some(80),
         };
 
-        let uri = endpoint.uri()?;
+        let uri = endpoint.uri(true)?;
         assert_eq!(uri.host(), Some("host"));
         assert_eq!(uri.port_u16(), Some(80));
         assert_eq!(uri.path(), "/trace/v1");
@@ -508,6 +612,24 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn uri_from_endpoint_no_tls_ok() -> Result<()> {
+        let endpoint = Endpoint {
+            host: "host".to_string(),
+            path: TRACE_API_PATH,
+            port: Some(80),
+        };
+
+        let uri = endpoint.uri(false)?;
+        assert_eq!(uri.host(), Some("host"));
+        assert_eq!(uri.port_u16(), Some(80));
+        assert_eq!(uri.path(), "/trace/v1");
+        assert_eq!(uri.scheme().unwrap().as_str(), "http");
+
+        Ok(())
+    }
+
 
     #[test]
     fn uri_from_endpoint_error() -> Result<()> {
@@ -528,7 +650,7 @@ mod tests {
                 port: None,
             },
         ] {
-            let uri = endpoint.uri();
+            let uri = endpoint.uri(true);
 
             assert!(
                 uri.is_err(),
@@ -664,7 +786,7 @@ mod tests {
             port: None,
         };
 
-        let request = client.request(&*batch, &endpoint.uri()?)?;
+        let request = client.request(&*batch, &endpoint.uri(true)?)?;
 
         assert_eq!(request.uri().port(), None);
         assert_eq!(request.uri().host(), Some("host"));
@@ -699,7 +821,7 @@ mod tests {
             port: Some(80),
         };
 
-        let request = client.request(&*batch, &endpoint.uri()?)?;
+        let request = client.request(&*batch, &endpoint.uri(true)?)?;
 
         assert_eq!(request.uri().port().unwrap().as_u16(), 80);
         assert_eq!(request.uri().host(), Some("host"));
@@ -718,6 +840,7 @@ mod tests {
         assert_eq!(b.endpoint_traces.host, "trace-api.newrelic.com");
         assert_eq!(b.endpoint_traces.port, None);
         assert_eq!(b.product_info, None);
+        assert_eq!(b.use_tls, true);
     }
 
     #[test]

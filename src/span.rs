@@ -293,6 +293,12 @@ mod tests {
 
 pub struct SpanBatch;
 
+impl SpanBatch {
+    pub fn new() -> Self {
+        SpanBatch
+    }
+}
+
 impl Sendable for SpanBatch {
     fn marshall(&self) -> Result<String> {
         Ok("".to_string())
