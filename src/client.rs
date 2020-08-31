@@ -229,7 +229,7 @@ impl ClientBuilder {
         self
     }
 
-    /// Configure the maximum of batches sent in one go in blocking mode.
+    /// Configure the maximum number of batches sent in one go in blocking mode.
     ///
     /// This configuration has no effect for default non-blocking clients.
     ///
