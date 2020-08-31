@@ -158,6 +158,32 @@ mod blocking {
     }
 
     #[test]
+    fn backpressure() -> Result<()> {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut endpoint = Endpoint::new();
+        let client = ClientBuilder::new(&endpoint.license)
+            .endpoint_traces(&endpoint.host, Some(endpoint.port))
+            .tls(false)
+            .blocking_queue_max(1)
+            .build_blocking()?;
+
+        for _ in 0..10 {
+            client.send_spans(SpanBatch::new());
+        }
+
+        endpoint.reply(202)?;
+        assert!(endpoint.next_payload().is_ok(), "first batch sent");
+
+        assert!(
+            endpoint.next_payload().is_err(),
+            "additional batches dropped"
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn split_payload() -> Result<()> {
         /*
         let (mut endpoint, client) = setup();
