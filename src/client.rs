@@ -529,6 +529,7 @@ pub mod blocking {
                     }
                 }
 
+                // Drop batches that exceed the maximum defined queue size.
                 if batches.len() > queue_max {
                     warn!(
                         "back pressure, dropping {} span batches",
