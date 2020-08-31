@@ -492,10 +492,10 @@ pub mod blocking {
                 let mut batches = vec![];
 
                 // Wait until at least one batch is received.
-                batches.push(match rx.recv() {
-                    Ok(b) => b,
+                match rx.recv() {
+                    Ok(b) => batches.push(b),
                     Err(_) => break,
-                });
+                };
 
                 // Empty the channel.
                 loop {
