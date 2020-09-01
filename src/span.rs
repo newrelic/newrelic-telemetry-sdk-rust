@@ -444,10 +444,17 @@ mod tests {
         // SpanBatch, only that the originally was drained as expected
         // However, the integration tests cover both sides of this case.
         let mut batch = SpanBatch::from(span_vec(2));
-        let _second_batch = batch.split();
+        let uuid = batch.uuid().to_string();
+        let second_batch = batch.split();
 
+        let second_uuid = second_batch.uuid();
         assert_eq!(batch.spans.len(), 1);
         assert_eq!(batch.spans[0], Span::new("id0", "trace_id0", 1));
+
+        // confirm the uuid for the second batch is not the same as the first
+        // and that the first remains unchanged
+        assert_ne!(uuid, second_uuid);
+        assert_eq!(uuid, batch.uuid());
     }
 
     #[test]
