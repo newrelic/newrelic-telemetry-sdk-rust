@@ -1,7 +1,7 @@
 use crate::attribute::Value;
 use crate::client::Sendable;
 use anyhow::Result;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
@@ -109,33 +109,13 @@ impl Span {
     }
 }
 
-/// Represents the common fields of a SpanBatch.
-/// At the moment, only `attributes` is defined.
-#[derive(Serialize, Clone, Debug, PartialEq)]
-struct SpanBatchCommon {
-    // Only serialize if there is data.  If testing, sort data via a BTreeMap
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    attributes: HashMap<String, Value>,
-}
-
-impl SpanBatchCommon {
-    /// Create a new SpanBatchCommon with empty values.
-    fn new() -> Self {
-        SpanBatchCommon {
-            attributes: HashMap::new(),
-        }
-    }
-
-    /// Adds an attribute to the common attributes map.
-    fn set_attribute<T: Into<Value>>(&mut self, key: &str, value: T) {
-        self.attributes.insert(key.to_string(), value.into());
-    }
-
-    /// Returns true if no common fields have values added to them.
-    /// This is primarily used to determine omission during SpanBatch serialization
-    fn is_empty(&self) -> bool {
-        self.attributes.is_empty()
-    }
+fn serialize_attributes<S>(attrs: &HashMap<String, Value>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut wrapper: HashMap<String, &HashMap<String, Value>> = HashMap::new();
+    wrapper.insert("attributes".to_string(), attrs);
+    wrapper.serialize(s)
 }
 
 /// Encapsulates a collection of spans and the common data they share
@@ -143,10 +123,10 @@ impl SpanBatchCommon {
 pub struct SpanBatch {
     spans: Vec<Span>,
 
-    /// A struct containing the common data of the batched spans. At this time,
-    /// only `attributes` is supported.
-    #[serde(skip_serializing_if = "SpanBatchCommon::is_empty")]
-    common: SpanBatchCommon,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(serialize_with = "serialize_attributes")]
+    #[serde(rename = "common")]
+    attributes: HashMap<String, Value>,
 }
 
 impl From<Vec<Span>> for SpanBatch {
@@ -167,7 +147,7 @@ impl SpanBatch {
     pub fn new() -> Self {
         SpanBatch {
             spans: vec![],
-            common: SpanBatchCommon::new(),
+            attributes: HashMap::new(),
         }
     }
 
@@ -190,13 +170,13 @@ impl SpanBatch {
     /// Sets an attribute on the span batch. Returns `self` and can be chained
     /// for concise addition of multiple attributes.
     pub fn attribute<T: Into<Value>>(mut self, key: &str, value: T) -> Self {
-        self.common.set_attribute(key, value);
+        self.set_attribute(key, value);
         self
     }
 
     /// Sets an attribute on the span batch.
     pub fn set_attribute<T: Into<Value>>(&mut self, key: &str, value: T) {
-        self.common.set_attribute(key, value);
+        self.attributes.insert(key.to_string(), value.into());
     }
 }
 
@@ -214,7 +194,7 @@ impl Sendable for SpanBatch {
 
         Box::new(SpanBatch {
             spans: self.spans.drain(new_batch_size..).collect(),
-            common: self.common.clone(),
+            attributes: self.attributes.clone(),
         })
     }
 }
@@ -225,7 +205,7 @@ impl fmt::Display for SpanBatch {
             f,
             "<SpanBatch spans:{} attributes:{}>",
             self.spans.len(),
-            self.common.attributes.len(),
+            self.attributes.len(),
         )
     }
 }
@@ -476,13 +456,13 @@ mod tests {
         // Test String attribute
         batch.set_attribute("attr.str", "str");
         assert_eq!(
-            batch.common.attributes.get("attr.str"),
+            batch.attributes.get("attr.str"),
             Some(&Value::Str(String::from("str")))
         );
 
         batch = batch.attribute("attr.str", "str2");
         assert_eq!(
-            batch.common.attributes.get("attr.str"),
+            batch.attributes.get("attr.str"),
             Some(&Value::Str(String::from("str2")))
         );
 
@@ -490,14 +470,14 @@ mod tests {
         let val_u32: u32 = 5;
         batch.set_attribute("attr.uint", val_u32);
         assert_eq!(
-            batch.common.attributes.get("attr.uint"),
+            batch.attributes.get("attr.uint"),
             Some(&Value::UInt(val_u32 as u64))
         );
 
         let val_u64: u64 = 42;
         batch = batch.attribute("attr.uint", val_u64);
         assert_eq!(
-            batch.common.attributes.get("attr.uint"),
+            batch.attributes.get("attr.uint"),
             Some(&Value::UInt(val_u64))
         );
 
@@ -505,44 +485,35 @@ mod tests {
         let val_i32: i32 = -5;
         batch.set_attribute("attr.int", val_i32);
         assert_eq!(
-            batch.common.attributes.get("attr.int"),
+            batch.attributes.get("attr.int"),
             Some(&Value::Int(val_i32 as i64))
         );
 
         let val_i64: i64 = -42;
         batch = batch.attribute("attr.int", val_i64);
-        assert_eq!(
-            batch.common.attributes.get("attr.int"),
-            Some(&Value::Int(val_i64))
-        );
+        assert_eq!(batch.attributes.get("attr.int"), Some(&Value::Int(val_i64)));
 
         // Test Float attribute
         let val_f32: f32 = 3.14;
         batch.set_attribute("attr.float", val_f32);
         assert_eq!(
-            batch.common.attributes.get("attr.float"),
+            batch.attributes.get("attr.float"),
             Some(&Value::Float(val_f32 as f64))
         );
 
         let val_f64: f64 = 6.28;
         batch = batch.attribute("attr.float", val_f64);
         assert_eq!(
-            batch.common.attributes.get("attr.float"),
+            batch.attributes.get("attr.float"),
             Some(&Value::Float(val_f64))
         );
 
         // Test Bool attribute
         batch.set_attribute("attr.bool", true);
-        assert_eq!(
-            batch.common.attributes.get("attr.bool"),
-            Some(&Value::Bool(true))
-        );
+        assert_eq!(batch.attributes.get("attr.bool"), Some(&Value::Bool(true)));
 
         batch = batch.attribute("attr.bool", false);
-        assert_eq!(
-            batch.common.attributes.get("attr.bool"),
-            Some(&Value::Bool(false))
-        );
+        assert_eq!(batch.attributes.get("attr.bool"), Some(&Value::Bool(false)));
     }
 
     #[test]
