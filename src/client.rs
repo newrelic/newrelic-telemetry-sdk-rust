@@ -102,6 +102,7 @@ pub struct ClientBuilder {
     retries_max: u32,
     endpoint_traces: Endpoint,
     product_info: Option<(String, String)>,
+    blocking_queue_max: usize,
     use_tls: bool,
 }
 
@@ -113,6 +114,7 @@ impl ClientBuilder {
     ///  * The default maximum of retries is 8.
     ///  * The default trace endpoint is `https://trace-api.newrelic.com/trace/v1` on port 80.
     ///  * By default, product information is empty.
+    ///  * By default, no more than 100 batches are sent in one go in blocking mode.
     ///
     /// ```
     /// # use newrelic_telemetry::ClientBuilder;
@@ -130,6 +132,7 @@ impl ClientBuilder {
                 path: TRACE_API_PATH,
             },
             product_info: None,
+            blocking_queue_max: 100,
             use_tls: true,
         }
     }
@@ -223,6 +226,25 @@ impl ClientBuilder {
     /// ```
     pub fn product_info(mut self, product: &str, version: &str) -> Self {
         self.product_info = Some((product.to_string(), version.to_string()));
+        self
+    }
+
+    /// Configure the maximum number of batches sent in one go in blocking mode.
+    ///
+    /// This configuration has no effect for default non-blocking clients.
+    ///
+    /// If the number of batches in the blocking client's batch queue exceeds
+    /// the maximum given here, the addditional batches will be dropped. This
+    /// mechanism avoids accumulating back pressure.
+    ///
+    /// ```
+    /// # use newrelic_telemetry::ClientBuilder;
+    /// # let api_key = "";
+    /// let mut builder =
+    ///     ClientBuilder::new(api_key).blocking_queue_max(10);
+    /// ```
+    pub fn blocking_queue_max(mut self, queue_max: usize) -> Self {
+        self.blocking_queue_max = queue_max;
         self
     }
 
@@ -468,6 +490,7 @@ pub mod blocking {
     use super::{ClientBuilder, SpanBatch};
     use anyhow::Result;
     use futures::future;
+    use log::warn;
     use std::sync::mpsc;
     use std::sync::Mutex;
     use std::thread;
@@ -486,16 +509,17 @@ pub mod blocking {
         pub fn new(builder: ClientBuilder) -> Result<Self> {
             let (tx, rx) = mpsc::channel::<Box<SendableType>>();
             let mut runtime = Builder::new().threaded_scheduler().enable_all().build()?;
+            let queue_max = builder.blocking_queue_max;
             let client = builder.build()?;
 
             let handle = thread::spawn(move || loop {
                 let mut batches = vec![];
 
                 // Wait until at least one batch is received.
-                batches.push(match rx.recv() {
-                    Ok(b) => b,
+                match rx.recv() {
+                    Ok(b) => batches.push(b),
                     Err(_) => break,
-                });
+                };
 
                 // Empty the channel.
                 loop {
@@ -503,6 +527,15 @@ pub mod blocking {
                         Ok(b) => batches.push(b),
                         Err(_) => break,
                     }
+                }
+
+                // Drop batches that exceed the maximum defined queue size.
+                if batches.len() > queue_max {
+                    warn!(
+                        "back pressure, dropping {} span batches",
+                        batches.len() - queue_max
+                    );
+                    batches.drain(queue_max..);
                 }
 
                 // Block until all batches are sent.
@@ -629,7 +662,6 @@ mod tests {
 
         Ok(())
     }
-
 
     #[test]
     fn uri_from_endpoint_error() -> Result<()> {
