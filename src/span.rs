@@ -164,17 +164,30 @@ pub struct SpanBatch {
     common: SpanBatchCommon,
 }
 
+impl From<Vec<Span>> for SpanBatch {
+    /// Creates a new `SpanBatch` from a `Vec<Span>`
+    fn from(spans: Vec<Span>) -> Self {
+        let mut batch = Self::new();
+
+        for span in spans {
+            batch.record(span);
+        }
+
+        batch
+    }
+}
+
 impl SpanBatch {
     /// Creates a new `SpanBatch` with all collections empty.
-    pub fn new() -> Box<Self> {
-        Box::new(SpanBatch {
+    pub fn new() -> Self {
+        SpanBatch {
             spans: vec![],
             common: SpanBatchCommon::new(),
-        })
+        }
     }
 
     /// Creates a new `SpanBatch` from a `Vec<Span>`
-    pub fn from(spans: Vec<Span>) -> Box<Self> {
+    pub fn from(spans: Vec<Span>) -> Self {
         let mut batch = Self::new();
 
         for span in spans {
@@ -191,9 +204,9 @@ impl SpanBatch {
 
     /// Sets an attribute on the span batch. Returns `self` and can be chained
     /// for concise addition of multiple attributes.
-    pub fn attribute<T: Into<Value>>(mut self, key: &str, value: T) -> Box<Self> {
+    pub fn attribute<T: Into<Value>>(mut self, key: &str, value: T) -> Self {
         self.common.set_attribute(key, value);
-        Box::new(self)
+        self
     }
 
     /// Sets an attribute on the span batch.
