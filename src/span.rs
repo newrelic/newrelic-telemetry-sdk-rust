@@ -1,10 +1,7 @@
 use crate::attribute::Value;
 use crate::client::Sendable;
 use anyhow::Result;
-#[cfg(test)]
-use serde::{Serialize, Serializer};
-#[cfg(test)]
-use std::collections::BTreeMap;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
@@ -114,23 +111,11 @@ impl Span {
 
 /// Represents the common fields of a SpanBatch.
 /// At the moment, only `attributes` is defined.
-#[derive(serde::Serialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Clone, Debug, PartialEq)]
 struct SpanBatchCommon {
     // Only serialize if there is data.  If testing, sort data via a BTreeMap
     #[serde(skip_serializing_if = "HashMap::is_empty")]
-    #[cfg_attr(test, serde(serialize_with = "hash_to_btree"))]
     attributes: HashMap<String, Value>,
-}
-
-#[cfg(test)]
-fn hash_to_btree<S>(value: &HashMap<String, Value>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    value
-        .iter()
-        .collect::<BTreeMap<_, _>>()
-        .serialize(serializer)
 }
 
 impl SpanBatchCommon {
@@ -206,7 +191,7 @@ impl Sendable for SpanBatch {
     /// Returns the span batch encoded as a json string in the format expected
     /// by the New Relic Telemetry API
     fn marshall(&self) -> Result<String> {
-        Ok(serde_json::to_string(self)?)
+        Ok(serde_json::to_string(&vec![self])?)
     }
 
     /// Splits the batch in half.  This is mostly used when the API service
@@ -236,8 +221,22 @@ impl fmt::Display for SpanBatch {
 mod tests {
     use super::{Sendable, Span, SpanBatch};
     use crate::attribute::Value;
+    use anyhow::Result;
     use serde_json::json;
     use std::time::Duration;
+
+    macro_rules! assert_json_eq {
+        ($x: expr, $y: expr) => {
+            let (left, right) = ($x, $y);
+            assert!(
+                serde_json::from_str::<serde_json::Value>(left)?
+                    == serde_json::from_str::<serde_json::Value>(right)?,
+                "expected {}, got {}",
+                left,
+                right
+            );
+        };
+    }
 
     #[test]
     fn span_set_id() {
@@ -441,18 +440,20 @@ mod tests {
     }
 
     #[test]
-    fn spanbatch_to_json() {
+    fn spanbatch_to_json() -> Result<()> {
         // Check span JSON serialization with empty attribute hashmap.
         let batch = SpanBatch::from(span_vec(2)).attribute("attr.test", 3);
 
         // json! macro imposes a sort which is different from the serde-derive
         // specified order, therefore a string is used
-        let expected_string = "{\"spans\":[\
-                {\"id\":\"id0\",\"trace.id\":\"trace_id0\",\"timestamp\":1},\
-                {\"id\":\"id1\",\"trace.id\":\"trace_id1\",\"timestamp\":1}],\
-                \"common\":{\"attributes\":{\"attr.test\":3}}}";
+        let expected_string = r#"[{"spans":[
+                {"id":"id0","trace.id":"trace_id0","timestamp":1},
+                {"id":"id1","trace.id":"trace_id1","timestamp":1}],
+                "common":{"attributes":{"attr.test":3}}}]"#;
 
-        assert_eq!(batch.marshall().unwrap(), expected_string);
+        let marshalled = batch.marshall().unwrap();
+        assert_json_eq!(marshalled.as_str(), expected_string);
+        Ok(())
     }
 
     #[test]
@@ -560,12 +561,14 @@ mod tests {
     }
 
     #[test]
-    fn spanbatch_attribute_chain() {
+    fn spanbatch_attribute_chain() -> Result<()> {
         let batch = SpanBatch::new()
             .attribute("bad_dogs", 0)
             .attribute("howdy", "y'all");
         let expected_string =
-            r#"{"spans":[],"common":{"attributes":{"bad_dogs":0,"howdy":"y'all"}}}"#;
-        assert_eq!(batch.marshall().unwrap(), expected_string);
+            r#"[{"spans":[],"common":{"attributes":{"bad_dogs":0,"howdy":"y'all"}}}]"#;
+        let marshalled = batch.marshall().unwrap();
+        assert_json_eq!(marshalled.as_str(), expected_string);
+        Ok(())
     }
 }
