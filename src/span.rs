@@ -220,6 +220,7 @@ impl Sendable for SpanBatch {
     /// returns a code indicating that the payload is too large.
     fn split(&mut self) -> Box<dyn Sendable> {
         let new_batch_size: usize = self.spans.len() / 2;
+        self.uuid = Uuid::new_v4().to_string();
 
         Box::new(SpanBatch {
             uuid: Uuid::new_v4().to_string(),
@@ -466,7 +467,7 @@ mod tests {
         // confirm the uuid for the second batch is not the same as the first
         // and that the first remains unchanged
         assert_ne!(uuid, second_uuid);
-        assert_eq!(uuid, batch.uuid());
+        assert_ne!(uuid, batch.uuid());
     }
 
     #[test]
