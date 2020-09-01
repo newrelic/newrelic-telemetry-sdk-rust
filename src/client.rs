@@ -21,6 +21,12 @@ const TRACE_API_PATH: &'static str = "trace/v1";
 /// New Relic ingest APIs currently accept batches of traces, metrics, events
 /// or logs.
 pub trait Sendable: std::fmt::Display + Send {
+    /// Return the uuid for the `Sendable`
+    ///
+    /// This method returns a version 4 UUID string which enables the ingest
+    /// service to identify duplicate requests.
+    fn uuid(&self) -> &str;
+
     // Create a payload
     //
     // This method creates a JSON payload representing the contents of the
@@ -432,6 +438,7 @@ impl Client {
             .header("Api-Key", &self.api_key)
             .header("Data-Format", "newrelic")
             .header("Data-Format-Version", "1")
+            .header("x-request-id", batch.uuid())
             .header(USER_AGENT, &self.user_agent)
             .header(CONTENT_ENCODING, "gzip")
             .header(CONTENT_TYPE, "application/json")
@@ -577,6 +584,10 @@ mod tests {
     pub struct TestBatch;
 
     impl Sendable for TestBatch {
+        fn uuid(&self) -> &str {
+            ""
+        }
+
         fn marshall(&self) -> Result<String> {
             Ok("".to_string())
         }
@@ -827,18 +838,23 @@ mod tests {
 
         let headers = request.headers();
 
-        for (header, expected) in vec![
+        let expected_headers = vec![
             (CONTENT_ENCODING.as_str(), "gzip"),
             (CONTENT_TYPE.as_str(), "application/json"),
             ("Api-Key", &client.api_key),
             ("Data-Format", "newrelic"),
             ("Data-Format-Version", "1"),
+            ("x-request-id", batch.uuid()),
             (USER_AGENT.as_str(), &client.user_agent),
-        ] {
+        ];
+        let expected_count = expected_headers.len();
+        for (header, expected) in expected_headers {
             let value = headers.get(header);
             let expected = HeaderValue::from_str(expected)?;
             assert_eq!(value, Some(&expected));
         }
+
+        assert_eq!(headers.len(), expected_count, "Unexpected header present!");
 
         Ok(())
     }

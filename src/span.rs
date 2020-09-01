@@ -5,6 +5,7 @@ use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
+use uuid::Uuid;
 
 /// Represents a distributed tracing span.
 #[derive(serde::Serialize, Clone, Debug, PartialEq)]
@@ -121,6 +122,9 @@ where
 /// Encapsulates a collection of spans and the common data they share
 #[derive(serde::Serialize, Debug, PartialEq)]
 pub struct SpanBatch {
+    #[serde(skip_serializing)]
+    uuid: String,
+
     spans: Vec<Span>,
 
     #[serde(skip_serializing_if = "HashMap::is_empty")]
@@ -146,6 +150,7 @@ impl SpanBatch {
     /// Creates an empty `SpanBatch`.
     pub fn new() -> Self {
         SpanBatch {
+            uuid: Uuid::new_v4().to_string(),
             spans: vec![],
             attributes: HashMap::new(),
         }
@@ -181,6 +186,10 @@ impl SpanBatch {
 }
 
 impl Sendable for SpanBatch {
+    fn uuid(&self) -> &str {
+        &self.uuid
+    }
+
     /// Returns the span batch encoded as a json string in the format expected
     /// by the New Relic Telemetry API
     fn marshall(&self) -> Result<String> {
@@ -191,8 +200,10 @@ impl Sendable for SpanBatch {
     /// returns a code indicating that the payload is too large.
     fn split(&mut self) -> Box<dyn Sendable> {
         let new_batch_size: usize = self.spans.len() / 2;
+        self.uuid = Uuid::new_v4().to_string();
 
         Box::new(SpanBatch {
+            uuid: Uuid::new_v4().to_string(),
             spans: self.spans.drain(new_batch_size..).collect(),
             attributes: self.attributes.clone(),
         })
@@ -426,10 +437,17 @@ mod tests {
         // SpanBatch, only that the originally was drained as expected
         // However, the integration tests cover both sides of this case.
         let mut batch = SpanBatch::from(span_vec(2));
-        let _second_batch = batch.split();
+        let uuid = batch.uuid().to_string();
+        let second_batch = batch.split();
 
+        let second_uuid = second_batch.uuid();
         assert_eq!(batch.spans.len(), 1);
         assert_eq!(batch.spans[0], Span::new("id0", "trace_id0", 1));
+
+        // confirm the uuid for the second batch is not the same as the first
+        // and that the first remains unchanged
+        assert_ne!(uuid, second_uuid);
+        assert_ne!(uuid, batch.uuid());
     }
 
     #[test]
