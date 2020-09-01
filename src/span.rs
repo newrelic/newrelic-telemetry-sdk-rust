@@ -143,7 +143,7 @@ impl From<Vec<Span>> for SpanBatch {
 }
 
 impl SpanBatch {
-    /// Creates a new `SpanBatch` with all collections empty.
+    /// Creates an empty `SpanBatch`.
     pub fn new() -> Self {
         SpanBatch {
             spans: vec![],
