@@ -20,6 +20,8 @@ jobs:
           default: true
           override: true
     - name: run tests
+      env:
+          RUST_TEST_TASKS: 1
       run: cargo test --all-features
 
   windows_build:
@@ -35,4 +37,6 @@ jobs:
           default: true
           override: true
     - name: run tests
+      env:
+          RUST_TEST_TASKS: 1
       run: cargo test --all-features
