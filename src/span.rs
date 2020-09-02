@@ -156,17 +156,6 @@ impl SpanBatch {
         }
     }
 
-    /// Creates a new `SpanBatch` from a `Vec<Span>`
-    pub fn from(spans: Vec<Span>) -> Self {
-        let mut batch = Self::new();
-
-        for span in spans {
-            batch.record(span);
-        }
-
-        batch
-    }
-
     /// Adds the provided span to the batch.
     pub fn record(&mut self, span: Span) {
         self.spans.push(span);
