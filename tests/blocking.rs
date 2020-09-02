@@ -11,17 +11,16 @@ mod blocking {
     use std::thread;
     use std::time::Duration;
 
-    pub fn setup() -> (Endpoint, Client) {
+    pub fn setup() -> Result<(Endpoint, Client)> {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let endpoint = Endpoint::new();
         let client = ClientBuilder::new(&endpoint.license)
             .endpoint_traces(&endpoint.host, Some(endpoint.port))
             .tls(false)
-            .build_blocking()
-            .unwrap();
+            .build_blocking()?;
 
-        (endpoint, client)
+        Ok((endpoint, client))
     }
 
     #[test]
@@ -90,7 +89,7 @@ mod blocking {
 
     #[test]
     fn headers() -> Result<()> {
-        let (mut endpoint, client) = setup();
+        let (mut endpoint, client) = setup()?;
 
         let span_batch = SpanBatch::new();
 
@@ -144,7 +143,7 @@ mod blocking {
     #[test]
     fn drop_payload() -> Result<()> {
         for code in vec![400, 401, 403, 404, 405, 409, 410, 411] {
-            let (mut endpoint, client) = setup();
+            let (mut endpoint, client) = setup()?;
 
             let span_batch = SpanBatch::new();
 
@@ -186,14 +185,17 @@ mod blocking {
 
     #[test]
     fn split_payload() -> Result<()> {
-        let (mut endpoint, client) = setup();
+        let (mut endpoint, client) = setup()?;
 
         let mut span_batch = SpanBatch::new();
 
-        span_batch.record(Span::new("id1", "tid1", 1000));
-        span_batch.record(Span::new("id2", "tid2", 2000));
-        span_batch.record(Span::new("id1", "tid1", 1000));
-        span_batch.record(Span::new("id2", "tid2", 2000));
+        let span_batch = vec![
+            Span::new("id1", "tid1", 1000),
+            Span::new("id2", "tid2", 2000),
+            Span::new("id1", "tid1", 1000),
+            Span::new("id2", "tid2", 2000),
+        ]
+        .into();
 
         client.send_spans(span_batch);
         endpoint.reply(413)?;

@@ -7,31 +7,30 @@ mod client {
     use super::common;
     use anyhow::Result;
     use common::Endpoint;
-    use std::time::Duration;
-    use std::thread;
     use newrelic_telemetry::{Client, ClientBuilder, Span, SpanBatch};
+    use std::thread;
+    use std::time::Duration;
 
-    pub fn setup() -> (Endpoint, Client) {
+    pub fn setup() -> Result<(Endpoint, Client)> {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let endpoint = Endpoint::new();
         let client = ClientBuilder::new(&endpoint.license)
             .endpoint_traces(&endpoint.host, Some(endpoint.port))
             .tls(false)
-            .build()
-            .unwrap();
+            .build()?;
 
-        (endpoint, client)
+        Ok((endpoint, client))
     }
 
     #[tokio::test(threaded_scheduler)]
     async fn empty() -> Result<()> {
-        let (mut endpoint, client) = setup();
+        let (mut endpoint, client) = setup()?;
 
         // Assertions are all handled in a separate thread, so we can await the
         // future in the main thread.
         let handle = thread::spawn(move || -> Result<()> {
-            endpoint.reply(202).unwrap();
+            endpoint.reply(202)?;
 
             assert_json_eq!(
                 &endpoint.next_payload().unwrap().body,
@@ -50,7 +49,7 @@ mod client {
 
     #[tokio::test(threaded_scheduler)]
     async fn simple() -> Result<()> {
-        let (mut endpoint, client) = setup();
+        let (mut endpoint, client) = setup()?;
 
         let handle = thread::spawn(move || -> Result<()> {
             endpoint.reply(202)?;
@@ -85,7 +84,7 @@ mod client {
 
     #[tokio::test(threaded_scheduler)]
     async fn all_api_attrs() -> Result<()> {
-        let (mut endpoint, client) = setup();
+        let (mut endpoint, client) = setup()?;
 
         let handle = thread::spawn(move || -> Result<()> {
             endpoint.reply(202)?;
@@ -128,7 +127,7 @@ mod client {
 
     #[tokio::test(threaded_scheduler)]
     async fn custom_attrs() -> Result<()> {
-        let (mut endpoint, client) = setup();
+        let (mut endpoint, client) = setup()?;
 
         let handle = thread::spawn(move || -> Result<()> {
             endpoint.reply(202)?;
@@ -175,7 +174,7 @@ mod client {
 
     #[tokio::test(threaded_scheduler)]
     async fn two_spans() -> Result<()> {
-        let (mut endpoint, client) = setup();
+        let (mut endpoint, client) = setup()?;
 
         let handle = thread::spawn(move || -> Result<()> {
             endpoint.reply(202)?;
@@ -202,9 +201,11 @@ mod client {
             Ok(())
         });
 
-        let mut span_batch = SpanBatch::new();
-        span_batch.record(Span::new("id1", "tid1", 1000));
-        span_batch.record(Span::new("id2", "tid2", 2000));
+        let span_batch = vec![
+            Span::new("id1", "tid1", 1000),
+            Span::new("id2", "tid2", 2000),
+        ]
+        .into();
 
         client.send_spans(span_batch).await;
         handle.join().unwrap()?;
