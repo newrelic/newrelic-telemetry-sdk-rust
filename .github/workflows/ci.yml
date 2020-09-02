@@ -20,7 +20,7 @@ jobs:
           default: true
           override: true
     - name: run tests
-      run: cargo test --all-features
+      run: cargo test --all-features -- --test-threads=1
 
   windows_build:
     name: Windows Build
@@ -35,4 +35,4 @@ jobs:
           default: true
           override: true
     - name: run tests
-      run: cargo test --all-features
+      run: cargo test --all-features -- --test-threads=1 
