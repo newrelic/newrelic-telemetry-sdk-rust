@@ -131,7 +131,7 @@ impl Endpoint {
             license: "license".to_string(),
             host: "127.0.0.1".to_string(),
             port: port,
-            timeout_ms: 3000,
+            timeout_ms: 5000,
             server: Some(handle),
             chan_payloads: payloads,
             chan_responses: responses,
