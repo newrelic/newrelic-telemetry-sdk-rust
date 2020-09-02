@@ -1,4 +1,5 @@
 #[cfg(feature = "blocking")]
+#[macro_use]
 mod common;
 
 #[cfg(feature = "blocking")]
@@ -6,7 +7,7 @@ mod blocking {
     use super::common;
     use anyhow::Result;
     use common::Endpoint;
-    use newrelic_telemetry::{blocking::Client, ClientBuilder, SpanBatch};
+    use newrelic_telemetry::{blocking::Client, ClientBuilder, Span, SpanBatch};
     use std::thread;
     use std::time::Duration;
 
@@ -185,21 +186,14 @@ mod blocking {
 
     #[test]
     fn split_payload() -> Result<()> {
-        /*
         let (mut endpoint, client) = setup();
 
-        span_batch
-            .record(Span::new("id1").trace_id("tid1").timestamp(1000))
-            .unwrap();
-        span_batch
-            .record(Span::new("id2").trace_id("tid2").timestamp(2000))
-            .unwrap();
-        span_batch
-            .record(Span::new("id1").trace_id("tid1").timestamp(1000))
-            .unwrap();
-        span_batch
-            .record(Span::new("id2").trace_id("tid2").timestamp(2000))
-            .unwrap();
+        let mut span_batch = SpanBatch::new();
+
+        span_batch.record(Span::new("id1", "tid1", 1000));
+        span_batch.record(Span::new("id2", "tid2", 2000));
+        span_batch.record(Span::new("id1", "tid1", 1000));
+        span_batch.record(Span::new("id2", "tid2", 2000));
 
         client.send_spans(span_batch);
         endpoint.reply(413)?;
@@ -246,7 +240,6 @@ mod blocking {
 
         // Skip the first payload that is rejected.
         endpoint.next_payload()?.body;
-        */
 
         Ok(())
     }
