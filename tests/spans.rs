@@ -42,7 +42,7 @@ mod client {
 
         client.send_spans(SpanBatch::new()).await;
 
-        handle.join().unwrap()?;
+        handle.join().expect("error from endpoint thread")?;
 
         Ok(())
     }
@@ -77,7 +77,7 @@ mod client {
         span_batch.record(Span::new("id1", "tid1", 1000));
 
         client.send_spans(span_batch).await;
-        handle.join().unwrap()?;
+        handle.join().expect("error from endpoint thread")?;
 
         Ok(())
     }
@@ -120,7 +120,7 @@ mod client {
         );
 
         client.send_spans(span_batch).await;
-        handle.join().unwrap()?;
+        handle.join().expect("error from endpoint thread")?;
 
         Ok(())
     }
@@ -167,7 +167,7 @@ mod client {
         );
 
         client.send_spans(span_batch).await;
-        handle.join().unwrap()?;
+        handle.join().expect("error from endpoint thread")?;
 
         Ok(())
     }
@@ -208,7 +208,7 @@ mod client {
         .into();
 
         client.send_spans(span_batch).await;
-        handle.join().unwrap()?;
+        handle.join().expect("error from endpoint thread")?;
 
         Ok(())
     }
