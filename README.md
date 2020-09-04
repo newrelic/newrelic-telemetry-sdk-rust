@@ -13,6 +13,8 @@ What is the New Relic Rust Telemetry SDK?
 
 This SDK currently supports sending spans to the [Trace API](https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/trace-api/introduction-trace-api).
 
+**This project is currently in an alpha state.**
+
 ## Getting Started
 
 This is a simple application that sends a single span via the asynchronous
@@ -24,8 +26,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[tokio::main]
 async fn main() {
-    let _ = env_logger::builder().is_test(true).try_init();
-    
     // Obtain a license key from the environment.
     let license_key = env::var("NEW_RELIC_API_KEY").unwrap();
 
