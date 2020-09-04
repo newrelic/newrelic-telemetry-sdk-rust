@@ -1,38 +1,84 @@
-[![Community Project header](https://github.com/newrelic/opensource-website/raw/master/src/images/categories/Community_Project.png)](https://opensource.newrelic.com/oss-category/#community-project)
+[![Community Project header](https://github.com/newrelic/open-source-office/raw/master/examples/categories/images/Community_Project.png)](https://github.com/newrelic/open-source-office/blob/master/examples/categories/index.md#community-project)
 
-# [Name of Project] [build badges go here when available]
+# New Relic Rust Telemetry SDK
 
->[Brief description - what is the project and value does it provide? How often should users expect to get releases? How is versioning set up? Where does this project want to go?]
+![Build status](https://github.com/newrelic/newrelic-telemetry-sdk-rust/workflows/CI/badge.svg)
+[![Release](https://img.shields.io/github/v/release/newrelic/newrelic-telemetry-sdk-rust?include_prereleases&style=)](https://github.com/newrelic/newrelic-telemetry-sdk-rust/releases/)
 
-## Installation
+What is the New Relic Rust Telemetry SDK?
 
-> [Include a step-by-step procedure on how to get your code installed. Be sure to include any third-party dependencies that need to be installed separately]
+* It's a helper library that supports sending New Relic data from within your Rust application.
+* It's the foundation of [New Relic's C Telemetry SDK](https://github.com/newrelic/newrelic-telemetry-sdk-c).
+* It’s an example of "best practices" for sending us data.
+
+This SDK currently supports sending spans to the [Trace API](https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/trace-api/introduction-trace-api).
 
 ## Getting Started
->[Simple steps to start working with the software similar to a "Hello World"]
 
-## Usage
->[**Optional** - Include more thorough instructions on how to use the software. This section might not be needed if the Getting Started section is enough. Remove this section if it's not needed.]
+This is a simple application that sends a single span via the asynchronous
+client:
+```rust
+use newrelic_telemetry::{ClientBuilder, Span};
+use std::env;
+use std::time::{SystemTime, UNIX_EPOCH};
 
+#[tokio::main]
+async fn main() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    
+    // Obtain a license key from the environment.
+    let license_key = env::var("NEW_RELIC_API_KEY").unwrap();
 
-## Building
+    // Build an asynchronous client.
+    let client = ClientBuilder::new(&license_key).build().unwrap();
 
->[**Optional** - Include this section if users will need to follow specific instructions to build the software from source. Be sure to include any third party build dependencies that need to be installed separately. Remove this section if it's not needed.]
+    // Create a span and a span batch.
+    let span = Span::new(
+        "e9f54a2c322d7578",
+        "1b1bf29379951c1d",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64,
+    )
+    .name("/index.html")
+    .attribute("username", "user")
+    .service_name("Telemetry Application");
 
-## Testing
+    let span_batch = vec![span].into();
 
->[**Optional** - Include instructions on how to run tests if we include tests with the codebase. Remove this section if it's not needed.]
+    // Send a span batch and await the future.
+    client.send_spans(span_batch).await;
+}
+```
 
-## Support
+## Find and use your data
 
-New Relic hosts and moderates an online forum where customers can interact with New Relic employees as well as other customers to get help and share best practices. Like all official New Relic open source projects, there's a related Community topic in the New Relic Explorers Hub. You can find this project's topic/threads here:
+Tips on how to find and query your data in New Relic:
+- [Find metric data](https://docs.newrelic.com/docs/data-ingest-apis/get-data-new-relic/metric-api/introduction-metric-api#find-data)
+- [Find trace/span data](https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/trace-api/introduction-trace-api#view-data)
 
->Add the url for the support thread here
+For general querying information, see:
+- [Query New Relic data](https://docs.newrelic.com/docs/using-new-relic/data/understand-data/query-new-relic-data)
+- [Intro to NRQL](https://docs.newrelic.com/docs/query-data/nrql-new-relic-query-language/getting-started/introduction-nrql)
 
 ## Contributing
-We encourage your contributions to improve [project name]! Keep in mind when you submit your pull request, you'll need to sign the CLA via the click-through using CLA-Assistant. You only have to sign the CLA one time per project.
-If you have any questions, or to execute our corporate CLA, required if your contribution is on behalf of a company,  please drop us an email at opensource@newrelic.com.
+
+We encourage your contributions to improve the Rust Telemetry SDK! Keep in mind
+when you submit your pull request, you'll need to sign the CLA via the 
+click-through using CLA-Assistant. You only have to sign the CLA one time per
+project. If you have any questions, or to execute our corporate CLA, required
+if your contribution is on behalf of a company,  please drop us an email at
+opensource@newrelic.com.
 
 ## License
-[Project Name] is licensed under the [Apache 2.0](http://apache.org/licenses/LICENSE-2.0.txt) License.
->[If applicable: The [project name] also uses source code from third-party libraries. You can find full details on which libraries are used and the terms under which they are licensed in the third-party notices document.]
+
+The Rust Telemetry SDK is licensed under the [Apache 2.0](http://apache.org/licenses/LICENSE-2.0.txt) 
+License.
+
+### Limitations
+
+The New Relic Telemetry APIs are rate limited. Please reference the
+documentation for [New Relic Metric API](https://docs.newrelic.com/docs/introduction-new-relic-metric-api) 
+and [New Relic Trace API requirements and limits](https://docs.newrelic.com/docs/apm/distributed-tracing/trace-api/trace-api-general-requirements-limits)
+on the specifics of the rate limits.
