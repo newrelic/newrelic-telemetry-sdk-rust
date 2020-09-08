@@ -19,6 +19,8 @@ This SDK currently supports sending spans to the [Trace API](https://docs.newrel
 
 ## Getting Started
 
+In order to send telemetry data to New Relic APIs, you will need an Insert API key. To find out how to generate this key, see our [docs](https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys).
+
 This is a simple application that sends a single span via the asynchronous
 client:
 ```rust
