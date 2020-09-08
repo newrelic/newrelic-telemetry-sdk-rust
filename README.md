@@ -15,7 +15,8 @@ What is the New Relic Rust Telemetry SDK?
 
 This SDK currently supports sending spans to the [Trace API](https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/trace-api/introduction-trace-api).
 
-**This project is currently in an alpha state.**
+**This project is currently in an alpha state.** The API of this crate is
+likely to change, therefore there's no API documentation available yet.
 
 ## Getting Started
 
@@ -59,7 +60,6 @@ async fn main() {
 ## Find and use your data
 
 Tips on how to find and query your data in New Relic:
-- [Find metric data](https://docs.newrelic.com/docs/data-ingest-apis/get-data-new-relic/metric-api/introduction-metric-api#find-data)
 - [Find trace/span data](https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/trace-api/introduction-trace-api#view-data)
 
 For general querying information, see:
