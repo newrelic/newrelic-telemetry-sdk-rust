@@ -11,7 +11,7 @@ What is the New Relic Rust Telemetry SDK?
 * It's the foundation of [New Relic's C Telemetry SDK](https://github.com/newrelic/newrelic-telemetry-sdk-c).
 * It’s an example of "best practices" for sending us data.
 
-[The Telemetry SDK](https://docs.newrelic.com/docs/telemetry-data-platform/get-started/capabilities/telemetry-sdks-send-custom-telemetry-data-new-relic) provides you, the end-user-programmer, with a `Client `that sends `Spans` to New Relic. Individual spans are collected together into batches (via a `SpanBatch` object), and clients send these batches.  It serves as a foundation for getting open-standards based telemetry data like [OpenCensus](https://opencensus.io/), [OpenTracing](https://opentracing.io/), and [OpenTelemetry](https://opentelemetry.io/) into New Relic. You can use this to build tracers/exporters, such as ones based on these open standards.
+[The Telemetry SDK](https://docs.newrelic.com/docs/telemetry-data-platform/get-started/capabilities/telemetry-sdks-send-custom-telemetry-data-new-relic) provides you, the end-user programmer, with a `Client `that sends `Spans` to New Relic. Individual spans are collected together into batches (via a `SpanBatch` object), and clients send these batches.  It serves as a foundation for getting open-standards based telemetry data like [OpenCensus](https://opencensus.io/), [OpenTracing](https://opentracing.io/), and [OpenTelemetry](https://opentelemetry.io/) into New Relic. You can use this to build tracers/exporters, such as ones based on these open standards.
 
 This SDK currently supports sending spans to the [Trace API](https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/trace-api/introduction-trace-api).
 
@@ -63,8 +63,8 @@ Tips on how to find and query your data in New Relic:
 - [Find trace/span data](https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/trace-api/introduction-trace-api#view-data)
 
 For general querying information, see:
-- [Query New Relic data](https://docs.newrelic.com/docs/using-new-relic/data/understand-data/query-new-relic-data)
-- [Intro to NRQL](https://docs.newrelic.com/docs/query-data/nrql-new-relic-query-language/getting-started/introduction-nrql)
+- [Query New Relic data](https://docs.newrelic.com/docs/query-your-data/explore-query-data/explore-data/introduction-querying-new-relic-data)
+- [Intro to NRQL](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language)
 
 ## Contributing
 
