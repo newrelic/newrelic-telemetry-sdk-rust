@@ -66,6 +66,14 @@ For general querying information, see:
 - [Query New Relic data](https://docs.newrelic.com/docs/query-your-data/explore-query-data/explore-data/introduction-querying-new-relic-data)
 - [Intro to NRQL](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language)
 
+## Support
+
+New Relic hosts and moderates an online forum where customers can interact with
+New Relic employees as well as other customers to get help and share best
+practices. Like all official New Relic open source projects, there's a related
+Community topic in the New Relic Explorers Hub. You can find this project's
+topic/threads in the [Telemetry SDK section of Explorers Hub](https://discuss.newrelic.com/t/new-relic-rust-telemetry-sdk/114558)
+
 ## Contributing
 
 We encourage your contributions to improve the Rust Telemetry SDK! Keep in mind
@@ -74,13 +82,6 @@ click-through using CLA-Assistant. You only have to sign the CLA one time per
 project. If you have any questions, or to execute our corporate CLA, required
 if your contribution is on behalf of a company,  please drop us an email at
 opensource@newrelic.com.
-
-## Support
-New Relic hosts and moderates an online forum where customers can interact with
-New Relic employees as well as other customers to get help and share best
-practices. Like all official New Relic open source projects, there's a related
-Community topic in the New Relic Explorers Hub. You can find this project's
-topic/threads in the [Telemetry SDK section of Explorers Hub](https://discuss.newrelic.com/t/new-relic-rust-telemetry-sdk-open-source/114558)
 
 ## License
 
