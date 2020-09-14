@@ -75,6 +75,13 @@ project. If you have any questions, or to execute our corporate CLA, required
 if your contribution is on behalf of a company,  please drop us an email at
 opensource@newrelic.com.
 
+## Support
+New Relic hosts and moderates an online forum where customers can interact with
+New Relic employees as well as other customers to get help and share best
+practices. Like all official New Relic open source projects, there's a related
+Community topic in the New Relic Explorers Hub. You can find this project's
+topic/threads in the [Telemetry SDK section of Explorers Hub](https://discuss.newrelic.com/t/new-relic-rust-telemetry-sdk-open-source/114558)
+
 ## License
 
 The Rust Telemetry SDK is licensed under the [Apache 2.0](http://apache.org/licenses/LICENSE-2.0.txt) 
