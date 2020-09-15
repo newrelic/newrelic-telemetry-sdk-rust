@@ -1,3 +1,7 @@
+///
+/// Copyright 2020 New Relic Corporation. All rights reserved.
+/// SPDX-License-Identifier: Apache-2.0
+///
 use flate2::read::GzDecoder;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Server};
