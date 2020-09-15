@@ -22,6 +22,18 @@ likely to change, therefore there's no API documentation available yet.
 
 In order to send telemetry data to New Relic APIs, you will need an Insert API key. To find out how to generate this key, see our [docs](https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys).
 
+The Rust Telemetry SDK is not published as on [crates.io](https://crates.io) 
+yet. In order to use it in your Rust application, you have to clone this
+repository locally and include the crate via the local path name. If you
+cloned the Rust Telemetry SDK into a `vendor` subfolder of your Rust crate,
+you can add it as a dependency to your crate by adding the following dependency
+to your `Cargo.toml`:
+
+```toml
+[dependencies]
+newrelic-telemetry = { path = "vendor/newrelic-telemetry-sdk-rust" }
+```
+
 This is a simple application that sends a single span via the asynchronous
 client:
 ```rust
