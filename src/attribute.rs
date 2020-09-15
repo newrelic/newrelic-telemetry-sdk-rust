@@ -1,3 +1,8 @@
+///
+/// Copyright 2020 New Relic Corporation. All rights reserved.
+/// SPDX-License-Identifier: Apache-2.0
+///
+
 /// Represents any valid attribute value.
 ///
 /// According to the [specification](https://github.com/newrelic/newrelic-telemetry-sdk-specs/blob/master/capabilities.md),
