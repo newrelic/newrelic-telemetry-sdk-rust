@@ -3,6 +3,7 @@
 /// SPDX-License-Identifier: Apache-2.0
 ///
 use crate::span::SpanBatch;
+use crate::metric::MetricBatch;
 use anyhow::{anyhow, Result};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -19,6 +20,7 @@ use std::time::Duration;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const TRACE_API_PATH: &'static str = "trace/v1";
+const METRIC_API_PATH: &'static str = "metric/v1";
 
 /// Types that can be sent to a New Relic ingest API
 ///
@@ -111,6 +113,7 @@ pub struct ClientBuilder {
     backoff_factor: Duration,
     retries_max: u32,
     endpoint_traces: Endpoint,
+    endpoint_metrics: Endpoint,
     product_info: Option<(String, String)>,
     blocking_queue_max: usize,
     use_tls: bool,
@@ -140,6 +143,11 @@ impl ClientBuilder {
                 host: "trace-api.newrelic.com".to_string(),
                 port: None,
                 path: TRACE_API_PATH,
+            },
+            endpoint_metrics: Endpoint {
+                host: "metric-api.newrelic.com".to_string(),
+                port: None,
+                path: METRIC_API_PATH,
             },
             product_info: None,
             blocking_queue_max: 100,
@@ -215,6 +223,15 @@ impl ClientBuilder {
         self.endpoint_traces = Endpoint {
             host: url.to_string(),
             path: TRACE_API_PATH,
+            port: port,
+        };
+        self
+    }
+
+    pub fn endpoint_metrics(mut self, url: &str, port: Option<u16>) -> Self {
+        self.endpoint_metrics = Endpoint {
+            host: url.to_string(),
+            path: METRIC_API_PATH,
             port: port,
         };
         self
@@ -344,6 +361,7 @@ pub struct Client {
     user_agent: String,
     backoff_sequence: Vec<Duration>,
     endpoint_traces: Uri,
+    endpoint_metrics: Uri,
     client: hyper::Client<HttpsConnector<HttpConnector>>,
 }
 
@@ -357,6 +375,7 @@ impl Client {
         Ok(Client {
             api_key: builder.api_key,
             endpoint_traces: builder.endpoint_traces.uri(builder.use_tls)?,
+            endpoint_metrics: builder.endpoint_metrics.uri(builder.use_tls)?,
             user_agent: user_agent,
             backoff_sequence: backoff_seq,
             client: hyper::Client::builder().build::<_, hyper::Body>(https),
@@ -370,6 +389,10 @@ impl Client {
     /// and customized via the `ClientBuilder`.
     pub async fn send_spans(&self, batch: SpanBatch) {
         self.send(Box::new(batch), &self.endpoint_traces).await
+    }
+
+    pub async fn send_metrics(&self, batch: MetricBatch) {
+        self.send(Box::new(batch), &self.endpoint_metrics).await
     }
 
     // Returns a gzip compressed version of the given string.

@@ -4,6 +4,9 @@
 ///
 pub mod attribute;
 
+pub mod metric;
+pub use metric::{CountMetric, GaugeMetric, MetricBatch, SummaryMetric};
+
 pub mod span;
 pub use span::{Span, SpanBatch};
 
