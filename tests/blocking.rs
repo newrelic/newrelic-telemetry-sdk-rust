@@ -146,13 +146,13 @@ mod blocking {
 
     #[test]
     fn drop_payload() -> Result<()> {
-        for code in vec![400, 401, 403, 404, 405, 409, 410, 411] {
+        for code in &[400, 401, 403, 404, 405, 409, 410, 411] {
             let (mut endpoint, client) = setup()?;
 
             let span_batch = SpanBatch::new();
 
             client.send_spans(span_batch);
-            endpoint.reply(code)?;
+            endpoint.reply(*code)?;
 
             assert!(endpoint.next_payload().is_ok(), "first attempt to send");
             assert!(endpoint.next_payload().is_err(), "payload dropped");
@@ -190,8 +190,6 @@ mod blocking {
     #[test]
     fn split_payload() -> Result<()> {
         let (mut endpoint, client) = setup()?;
-
-        let mut span_batch = SpanBatch::new();
 
         let span_batch = vec![
             Span::new("id1", "tid1", 1000),
@@ -245,7 +243,7 @@ mod blocking {
         );
 
         // Skip the first payload that is rejected.
-        endpoint.next_payload()?.body;
+        endpoint.next_payload()?;
 
         Ok(())
     }

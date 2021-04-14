@@ -134,7 +134,7 @@ impl Endpoint {
         Endpoint {
             license: "license".to_string(),
             host: "127.0.0.1".to_string(),
-            port: port,
+            port,
             timeout_ms: 5000,
             server: Some(handle),
             chan_payloads: payloads,
@@ -155,8 +155,8 @@ impl Endpoint {
     ) -> Result<(), Error> {
         let mut lock = self.chan_responses.lock().unwrap();
         lock.push(Response {
-            code: code,
-            headers: headers,
+            code,
+            headers,
             body: body.to_string(),
         });
         let len = lock.len();
@@ -207,7 +207,7 @@ impl Endpoint {
 
         let mut lock = payloads.lock().unwrap();
         lock.push(Payload {
-            headers: headers,
+            headers,
             body: body_decoded,
         });
 
@@ -228,10 +228,7 @@ impl Endpoint {
 
     fn get_available_port() -> Option<u16> {
         fn port_is_available(p: u16) -> bool {
-            match TcpListener::bind(("127.0.0.1", p)) {
-                Ok(_) => true,
-                _ => false,
-            }
+            matches!(TcpListener::bind(("127.0.0.1", p)), Ok(_))
         }
 
         let mut ports: Vec<u16> = (3000..5000).collect();
@@ -243,7 +240,7 @@ impl Endpoint {
 
 impl Drop for Endpoint {
     fn drop(&mut self) {
-        if let Ok(_) = self.chan_stop.take().unwrap().send(()) {
+        if self.chan_stop.take().unwrap().send(()).is_ok() {
             let _ = self.server.take().unwrap().join();
         }
     }

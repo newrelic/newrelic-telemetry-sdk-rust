@@ -17,8 +17,8 @@ use std::pin::Pin;
 use std::thread;
 use std::time::Duration;
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-const TRACE_API_PATH: &'static str = "trace/v1";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const TRACE_API_PATH: &str = "trace/v1";
 
 /// Types that can be sent to a New Relic ingest API
 ///
@@ -215,7 +215,7 @@ impl ClientBuilder {
         self.endpoint_traces = Endpoint {
             host: url.to_string(),
             path: TRACE_API_PATH,
-            port: port,
+            port,
         };
         self
     }
@@ -357,7 +357,7 @@ impl Client {
         Ok(Client {
             api_key: builder.api_key,
             endpoint_traces: builder.endpoint_traces.uri(builder.use_tls)?,
-            user_agent: user_agent,
+            user_agent,
             backoff_sequence: backoff_seq,
             client: hyper::Client::builder().build::<_, hyper::Body>(https),
         })
@@ -373,7 +373,8 @@ impl Client {
     }
 
     // Returns a gzip compressed version of the given string.
-    fn to_gzip(text: &String) -> Result<Vec<u8>> {
+    #[allow(clippy::wrong_self_convention)]
+    fn to_gzip(text: &str) -> Result<Vec<u8>> {
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
         encoder.write_all(text.as_bytes())?;
         Ok(encoder.finish()?)
@@ -492,7 +493,8 @@ impl Client {
                 return SendableState::Retry(None);
             }
         }
-        return SendableState::Done;
+
+        SendableState::Done
     }
 }
 
@@ -533,11 +535,8 @@ pub mod blocking {
                 };
 
                 // Empty the channel.
-                loop {
-                    match rx.try_recv() {
-                        Ok(b) => batches.push(b),
-                        Err(_) => break,
-                    }
+                while let Ok(b) = rx.try_recv() {
+                    batches.push(b)
                 }
 
                 // Drop batches that exceed the maximum defined queue size.
@@ -563,7 +562,7 @@ pub mod blocking {
 
         pub fn send_spans(&self, b: SpanBatch) {
             if let Ok(ch) = self.channel.lock() {
-                if let Err(_) = ch.send(Box::new(SendableType::Spans(b))) {}
+                if ch.send(Box::new(SendableType::Spans(b))).is_err() {}
             }
         }
 
@@ -628,7 +627,7 @@ mod tests {
             client.backoff_sequence,
             vec![0, 2, 4, 8, 16, 32]
                 .into_iter()
-                .map(|d| Duration::from_secs(d))
+                .map(Duration::from_secs)
                 .collect::<Vec<Duration>>()
         );
 
@@ -679,7 +678,7 @@ mod tests {
     }
 
     #[test]
-    fn uri_from_endpoint_error() -> Result<()> {
+    fn uri_from_endpoint_error() {
         for endpoint in vec![
             Endpoint {
                 host: "host:80".to_string(),
@@ -704,8 +703,6 @@ mod tests {
                 format!("Could create an uri from {:?}: {:?}", endpoint, uri)
             );
         }
-
-        Ok(())
     }
 
     #[test]
@@ -759,9 +756,9 @@ mod tests {
 
     #[test]
     fn process_response_error() -> Result<()> {
-        for code in vec![400, 401, 403, 404, 405, 409, 410, 411] {
+        for code in &[400, 401, 403, 404, 405, 409, 410, 411] {
             let batch = Box::new(TestBatch);
-            let response = Response::builder().status(code).body(())?;
+            let response = Response::builder().status(*code).body(())?;
 
             assert_eq!(
                 Client::process_response(&*batch, response),
@@ -922,7 +919,7 @@ mod tests {
             seq,
             vec![0, 5, 10, 20, 40, 80, 160, 320]
                 .into_iter()
-                .map(|d| Duration::from_secs(d))
+                .map(Duration::from_secs)
                 .collect::<Vec<Duration>>()
         );
     }
@@ -945,7 +942,7 @@ mod tests {
             seq,
             vec![0, 2, 4, 8, 16, 32]
                 .into_iter()
-                .map(|d| Duration::from_secs(d))
+                .map(Duration::from_secs)
                 .collect::<Vec<Duration>>()
         );
     }

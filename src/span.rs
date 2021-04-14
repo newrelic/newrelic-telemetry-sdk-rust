@@ -31,7 +31,7 @@ impl Span {
         Span {
             id: id.to_string(),
             trace_id: trace_id.to_string(),
-            timestamp: timestamp,
+            timestamp,
             attributes: HashMap::new(),
         }
     }
@@ -124,7 +124,7 @@ where
 }
 
 /// Encapsulates a collection of spans and the common data they share
-#[derive(serde::Serialize, Debug, PartialEq)]
+#[derive(serde::Serialize, Debug, PartialEq, Default)]
 pub struct SpanBatch {
     #[serde(skip_serializing)]
     uuid: String,
@@ -388,7 +388,7 @@ mod tests {
         assert_eq!(span.attributes.get("attr.int"), Some(&Value::Int(val_i64)));
 
         // Test Float attribute
-        let val_f32: f32 = 3.14;
+        let val_f32: f32 = std::f32::consts::PI;
         span.set_attribute("attr.float", val_f32);
         assert_eq!(
             span.attributes.get("attr.float"),
@@ -505,7 +505,7 @@ mod tests {
         assert_eq!(batch.attributes.get("attr.int"), Some(&Value::Int(val_i64)));
 
         // Test Float attribute
-        let val_f32: f32 = 3.14;
+        let val_f32: f32 = std::f32::consts::PI;
         batch.set_attribute("attr.float", val_f32);
         assert_eq!(
             batch.attributes.get("attr.float"),

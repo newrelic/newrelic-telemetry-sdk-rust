@@ -225,7 +225,10 @@ mod tests {
         // Attribute values should serialize to plain JSON values.
         assert_eq!(json!(Value::Int(-5)), json!(-5));
         assert_eq!(json!(Value::UInt(5)), json!(5));
-        assert_eq!(json!(Value::Float(3.14159)), json!(3.14159));
+        assert_eq!(
+            json!(Value::Float(std::f64::consts::PI)),
+            json!(std::f64::consts::PI)
+        );
         assert_eq!(json!(Value::Str(String::from("root"))), json!("root"));
         assert_eq!(json!(Value::Bool(true)), json!(true));
     }
@@ -234,14 +237,20 @@ mod tests {
     fn into_value() {
         // Should be able to use Value::from or .into() to create Values
         assert_eq!(Value::Int(-5), Value::from(-5));
-        assert_eq!(Value::Int(-5), (-5 as i32).into());
+        assert_eq!(Value::Int(-5), (-5_i32).into());
 
         // cast needed because integer types default to i32
-        assert_eq!(Value::UInt(5), Value::from(5 as u64));
-        assert_eq!(Value::UInt(5), (5 as u64).into());
+        assert_eq!(Value::UInt(5), Value::from(5_u64));
+        assert_eq!(Value::UInt(5), (5_u64).into());
 
-        assert_eq!(Value::Float(3.14159), Value::from(3.14159));
-        assert_eq!(Value::Float(3.14159), (3.14159 as f64).into());
+        assert_eq!(
+            Value::Float(std::f64::consts::PI),
+            Value::from(std::f64::consts::PI)
+        );
+        assert_eq!(
+            Value::Float(std::f64::consts::PI),
+            (std::f64::consts::PI as f64).into()
+        );
 
         assert_eq!(Value::Str("root".to_string()), Value::from("root"));
         assert_eq!(Value::Str("root".to_string()), "root".into());

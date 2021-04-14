@@ -146,7 +146,7 @@ mod client {
                     "trace.id": "tid1",
                     "attributes": {
                       "bool_attr": true,
-                      "float_attr": 3.14159,
+                      "float_attr": 3.1415927410125732,
                       "str_attr": "string",
                       "int_attr": 40,
                       "neg_int_attr": -40,
@@ -163,7 +163,7 @@ mod client {
         span_batch.record(
             Span::new("id1", "tid1", 1000)
                 .attribute("bool_attr", true)
-                .attribute("float_attr", 3.14159)
+                .attribute("float_attr", std::f32::consts::PI)
                 .attribute("str_attr", "string")
                 .attribute("int_attr", 40)
                 .attribute("neg_int_attr", -40)
