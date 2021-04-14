@@ -700,7 +700,9 @@ mod tests {
 
             assert!(
                 uri.is_err(),
-                format!("Could create an uri from {:?}: {:?}", endpoint, uri)
+                "Could create an uri from {:?}: {:?}",
+                endpoint,
+                uri
             );
         }
     }
