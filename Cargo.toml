@@ -24,6 +24,6 @@ uuid = { version = "0.8.1", features = ["v4"] }
 
 [dev-dependencies]
 rand = "0.7.3"
-env_logger = "0.7.1"
+env_logger = "0.9.0"
 futures = { version = "0.3.1" }
 tokio = { version = "0.2.6", features = ["rt-threaded", "macros"] }
