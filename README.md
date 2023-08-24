@@ -1,4 +1,7 @@
-[![Community Project header](https://github.com/newrelic/open-source-office/raw/master/examples/categories/images/Community_Project.png)](https://github.com/newrelic/open-source-office/blob/master/examples/categories/index.md#community-project)
+<a href="https://opensource.newrelic.com/oss-category/#archived"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/dark/Archived.png"><source media="(prefers-color-scheme: light)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Archived.png"><img alt="New Relic Open Source archived project banner." src="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Archived.png"></picture></a>
+
+## Archival Notice ##
+As of August 2023, we are archiving the Telemetry SDK C project.
 
 # New Relic Rust Telemetry SDK
 
@@ -86,14 +89,6 @@ practices. Like all official New Relic open source projects, there's a related
 Community topic in the New Relic Explorers Hub. You can find this project's
 topic/threads in the [Telemetry SDK section of Explorers Hub](https://discuss.newrelic.com/t/new-relic-rust-telemetry-sdk/114558)
 
-## Contributing
-
-We encourage your contributions to improve the Rust Telemetry SDK! Keep in mind
-when you submit your pull request, you'll need to sign the CLA via the 
-click-through using CLA-Assistant. You only have to sign the CLA one time per
-project. If you have any questions, or to execute our corporate CLA, required
-if your contribution is on behalf of a company,  please drop us an email at
-opensource@newrelic.com.
 
 ## License
 
